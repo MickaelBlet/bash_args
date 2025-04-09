@@ -88,10 +88,11 @@ Hello world
 |[args_count](docs/functions.md#args_count)|Count the number of occurence of argument after parsed.|
 |[args_debug_values](docs/functions.md#args_debug_values)|Show all values of arguments and options.|
 |[args_isexists](docs/functions.md#args_isexists)|Check if argument is exists after parsed.|
+|[args_set_alternative](docs/functions.md#args_set_alternative)|Set if args_parse_arguments can be accept a single '-' for a long option.|
 |[args_set_description](docs/functions.md#args_set_description)|Set a usage description.|
 |[args_set_epilog](docs/functions.md#args_set_epilog)|Set a epilog description.|
 |[args_set_program_name](docs/functions.md#args_set_program_name)|Set the program name for usage message.|
-|[args_set_usage_width](docs/functions.md#args_set_usage_width)|Set the widths of usage message.|
+|[args_set_usage_widths](docs/functions.md#args_set_usage_widths)|Set the widths of usage message.|
 |[args_set_usage](docs/functions.md#args_set_usage)|Set a full usage message.|
 |[args_usage](docs/functions.md#args_usage)|Show/Generate usage message.|
 

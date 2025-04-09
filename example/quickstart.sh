@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# set -x
+
 set -euo pipefail
 
 source "args.sh"
 
 args_set_description "example" "of" "description"
 args_set_epilog "example of epilog"
+
+args_set_alternative true
 
 args_add_argument \
     --help "take the first argument" \
@@ -25,26 +29,22 @@ args_add_argument \
     -- "-p" "--print-hello" "-g" "-b" "-d" "-e" "-f"
 args_add_argument \
     --help="help of option" \
-    --nargs=+ \
+    --nargs="*" \
     --default="TOTO OPTION2" \
     --dest=OPTIONS \
-    -- "--option" "-o"
+    -- "--option" "-a"
 args_add_argument \
     --help="help of append pdqpoj wdpqojwd pqowjd pqwojdpqowdj pqojwd qpowjd qpj" \
     --action="append" \
     --default="APPP1 APPP2" \
     --dest=APPEND \
-    -- "--append" "-a"
+    -- "--append" "-o"
 args_add_argument \
     --help="help of count" \
     --action="count" \
     -- "--count" "-c"
 
 args_parse_arguments "$@"
-
-if args_isexists "-o"; then
-    echo "coucou"
-fi
 
 args_count "-c"
 echo "${ARGS[c]}"
@@ -62,17 +62,28 @@ echo "'--append' option from map ${ARGS[a.2]:-}"
 
 echo "'--option' option from map ${ARGS[option]:-}"
 echo "'--option' option from dest ${OPTIONS[*]:-}"
-for op in "${OPTIONS[@]:-}"; do
-    echo "$op"
+
+if [[ "${#OPTIONS[@]}" -eq 0 ]]; then
+    OPTIONS=()
+fi
+
+if [[ "${#APPEND[@]}" -eq 0 ]]; then
+    APPEND=()
+fi
+
+for op in "${OPTIONS[@]}"; do
+    echo "${op}"
 done
 
-for op in "${APPEND[@]:-}"; do
-    echo "$op"
+for op in "${APPEND[@]}"; do
+    echo "${op}"
 done
-if $DO_HELLO; then
+if ${DO_HELLO:-false}; then
     echo "Hello world"
 fi
 
 echo
 
 args_debug_values
+
+# set -o posix ; set

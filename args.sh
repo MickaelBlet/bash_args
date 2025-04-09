@@ -2,7 +2,7 @@
 # args.sh
 #
 # Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-# Copyright (c) 2024 BLET Mickael.
+# Copyright (c) 2025 BLET Mickael.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@ args_clean() {
     __ARGS[usage.width.argument]=20
     __ARGS[usage.width.separator]=2
     __ARGS[usage.width.help]=56
+    __ARGS[alternative]="false"
 
     # positional argument
     __ARGS[argument.size]=0
@@ -199,6 +200,38 @@ __args_sort() {
         max=$((max - 1))
     done
     return 0
+}
+
+__args_parse_option_is_alternative_value() {
+    local index="$1"
+    local value="$2"
+    local name
+    local i
+    i=0
+    while [[ "${i}" -lt "${__ARGS[option.${index}.long.size]}" ]]; do
+        name="-${__ARGS[option.${index}.long.${i}]}"
+        if [[ "${value}" == "${name}" ]]; then
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    return 1
+}
+
+__args_parse_option_is_alternative_assign_value() {
+    local index="$1"
+    local value="$2"
+    local name
+    local i
+    i=0
+    while [[ "${i}" -lt "${__ARGS[option.${index}.long.size]}" ]]; do
+        name="-${__ARGS[option.${index}.long.${i}]}"
+        if [[ "${value}" == "${name}="* ]]; then
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    return 1
 }
 
 __args_parse_option_is_value() {
@@ -363,6 +396,19 @@ args_set_usage_widths() {
     __ARGS[usage.width.argument]="$2"
     __ARGS[usage.width.separator]="$3"
     __ARGS[usage.width.help]="$4"
+}
+
+# Set if args_parse_arguments can be accept a single '-' for a long option.
+#   param:
+#     $1  Alternative mode (true/false)
+args_set_alternative() {
+    if [[ "true" == "$1" ]] || [[ "false" == "$1" ]]; then
+        __ARGS[alternative]="$1"
+        return 0
+    else
+        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: accept only true or false parameter"
+        return 1
+    fi
 }
 
 # Check if argument is exists in argv
@@ -1174,8 +1220,116 @@ args_parse_arguments() {
                 return 64
             fi
         done
-        # Get options
         i=0
+        # Get options
+        if [[ "true" == "${__ARGS[alternative]}" ]]; then
+            while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
+                if __args_parse_option_is_alternative_value "${i}" "$1"; then
+                    if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]]; then
+                        local option_name="$1"
+                        local nargs=0
+                        while [[ "${nargs}" -lt "${__ARGS[option.${i}.nargs]}" ]]; do
+                            if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                                >&2 echo "${binary_name}: option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
+                                return 1
+                            fi
+                            __args_parse_assign_option_multi_values "${i}" "${nargs}" "$2"
+                            nargs=$((nargs + 1))
+                            shift
+                        done
+                        __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                        __ARGS[option.${i}.exists]="true"
+                        shift
+                    elif [[ "infinite" == "${__ARGS[option.${i}.action]}" ]]; then
+                        local option_name="$1"
+                        while true; do
+                            if [[ $# -le 1 ]] || \
+                               [[ "--" == "$2" ]] || \
+                               [[ "$2" =~ ^"-"[[:alpha:]] ]] || \
+                               [[ "$2" =~ ^"--"[[:alpha:]] ]]; then
+                                break
+                            fi
+                            __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "$2"
+                            __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                            shift
+                        done
+                        __ARGS[option.${i}.exists]="true"
+                        shift
+                    elif [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                        local value=""
+                        if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                            >&2 echo "${binary_name}: option '$1' require a argument"
+                            return 1
+                        fi
+                        value="$2"
+                        if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                           [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                            >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                            return 1
+                        fi
+                        __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
+                        __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                        __ARGS[option.${i}.exists]="true"
+                        shift 2
+                    else
+                        local value=""
+                        if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
+                            if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                                >&2 echo "${binary_name}: option '$1' require a argument"
+                                return 1
+                            fi
+                            value="$2"
+                            if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                            [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                return 1
+                            fi
+                            shift
+                        elif [[ "store_true" == "${__ARGS[option.${i}.action]}" ]]; then
+                            value="true"
+                        elif [[ "store_false" == "${__ARGS[option.${i}.action]}" ]]; then
+                            value="false"
+                        elif [[ "count" == "${__ARGS[option.${i}.action]}" ]]; then
+                            value=$((${__ARGS[option.${i}.count]} + 1))
+                        fi
+                        __args_parse_assign_option_value "${i}" "${value}"
+                        __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                        __ARGS[option.${i}.exists]="true"
+                        shift
+                    fi
+                    break
+                elif __args_parse_option_is_alternative_assign_value "${i}" "$1"; then
+                    if [[ "store" == "${__ARGS[option.${i}.action]}" ]] || \
+                       [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                        local value=""
+                        value="${1#*=}"
+                        if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                           [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                            >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                            return 1
+                        fi
+                        if [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                            __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
+                        else
+                            __args_parse_assign_option_value "${i}" "${value}"
+                        fi
+                        __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                        __ARGS[option.${i}.exists]="true"
+                        shift
+                    else
+                        >&2 echo "${binary_name}: option '$1' don't take a argument"
+                        return 1
+                    fi
+                    break
+                fi
+                i=$((i + 1))
+            done
+            if [[ "${i}" -eq "${__ARGS[option.size]}" ]]; then
+                i=0
+            else
+                continue
+            fi
+        fi
         while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
             if __args_parse_option_is_value "${i}" "$1"; then
                 if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]]; then
