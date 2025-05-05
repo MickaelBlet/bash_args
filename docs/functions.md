@@ -5,17 +5,17 @@
 Add a argument
 
 |Option|Description|
-|---|---|
-|--action|Action append, count, store, store_true, store_false (default:store)|
-|--choices|List of valid values (separate by spaces)|
-|--default|Default value|
-|--dest|Destination variable|
-|--flag|Add a optional argument|
-|--help|Usage helper|
-|--metavar|Usage argument name (if not set use long/short name)|
-|--name|Set the name of positionnal argument|
-|--nargs|The number of arguments that should be consumed<br/>One of character `*`. `+` for infinite argument option|
-|--required|Is required if exists|
+|--:|---|
+|`--action ACTION`|The [action](#action) of argument (default:`store`)(choices: `append`, `count`, `store`, `store_true`, `store_false`)|
+|`--choices CHOICES`|List of valid values (separate by spaces)|
+|`--default DEFAULT`|Default(s) value(s) (multi separate by spaces)|
+|`--dest DESTINATION`|Destination variable (global scope)|
+|`--flag FLAG`|Add a optional argument|
+|`--help HELP`|Usage helper|
+|`--metavar METAVAR`|Usage argument name (if not set use long/short name)|
+|`--name NAME`|Set the name of positionnal argument|
+|`--nargs NARGS`|The number of arguments that should be consumed<br/>One of character `*`, `+` for infinite argument option|
+|`--required`|Is required if exists|
 
 If error return 1.
 
@@ -23,17 +23,32 @@ If error return 1.
 args_add_argument [options...] -- [name/flags...]
 ```
 
+### Action
+
+|Action|Description|
+|--:|---|
+|`'store'`|This just stores the argument’s value. This is the default action|
+|`'store_true'`<br/>`'store_false'`|They create default values of False and True respectively|
+|`'append'`|This stores a list, and appends each argument value to the list. It is useful to allow an option to be specified multiple times.<br/>If the default value is non-empty, the default elements will be present in the parsed value for the option, with any values from the command line appended after those default values.|
+|`'count'`|This counts the number of times a keyword argument occurs.|
+
 ### examples
 
 ```bash
 # positional argument
 args_add_argument -- "FOO"
+# required positional argument
+args_add_argument --name="FOO" --required
 # boolean optional argument
 args_add_argument --action "store_true" -- "-f" "--foo"
 # not boolean optional argument
 args_add_argument --flag "-f" --flag "--foo" --action="store_false"
 # optional argument
 args_add_argument -- "-f" "--foo"
+# optional argument with take 2 arguments
+args_add_argument --nargs="2" --metavar="FOO1 FOO2" -- "-f" "--foo"
+# count optional argument
+args_add_argument --action="count" -- "-f" "--foo"
 ```
 
 ## args_parse_arguments
@@ -67,8 +82,8 @@ args_clean
 Check the count of argument in argv.
 
 |Parameter|Description|
-|---|---|
-|$1|Argument name|
+|--:|---|
+|`$1`|Argument name|
 
 ### example
 
@@ -91,8 +106,8 @@ args_debug_values
 Check if argument is exists in argv.
 
 |Parameter|Description|
-|---|---|
-|$1|Argument name|
+|--:|---|
+|`$1`|Argument name|
 
 ### example
 
@@ -102,11 +117,11 @@ args_isexists "--foo"
 
 ## args_set_alternative
 
-Set if args_parse_arguments can be accept a single '-' for a long option.
+Set if args_parse_arguments can be accept a single `-` for a long option.
 
 |Parameter|Description|
-|---|---|
-|$1|Alternative mode (true/false)|
+|--:|---|
+|`$1`|Alternative mode (`true`/`false`)|
 
 ### example
 
@@ -141,8 +156,8 @@ args_set_epilog "your epilog" "message"
 Set the program name.
 
 |Parameter|Description|
-|---|---|
-|$1|Name of program|
+|--:|---|
+|`$1`|Name of program|
 
 ### example
 
@@ -155,11 +170,11 @@ args_set_program_name "my_script"
 Set the widths of usage message.
 
 |Parameter|Description|
-|---|---|
-|$1|padding|
-|$2|argument|
-|$3|separator|
-|$4|help|
+|--:|---|
+|`$1`|Padding width|
+|`$2`|Argument width|
+|`$3`|Separator width|
+|`$4`|Help width|
 
 ```bash
 args_set_usage_widths 2 20 2 56
@@ -203,8 +218,8 @@ args_set_usage "usage: my_prog [options...]" " -- " "[args...]"
 Show/Generate usage message.
 
 |Parameter|Description|
-|---|---|
-|$1|Name/Path of script|
+|--:|---|
+|`$1`|Name/Path of script|
 
 ### example
 

@@ -23,10 +23,13 @@
 # SOFTWARE.
 #
 
-declare -A ARGS
-declare -A __ARGS
+ARGS_USAGE_RETURN_CODE=64  # return code at help called
 
-# Clean all map and array for recalled
+declare -A ARGS  # declare ARGS as an associative array
+declare -A __ARGS  # declare __ARGS as an associative array
+
+# Clean all argument-related data structures.
+# Resets the ARGS and __ARGS associative arrays to their initial state.
 args_clean() {
     ARGS=()
     __ARGS=()
@@ -45,9 +48,17 @@ args_clean() {
     __ARGS[argument.size]=0
     # optional argument
     __ARGS[option.size]=0
+    # indicate if argument is sorted
+    __ARGS[sorted]="false"
     return 0
 }
 
+# Check if an argument or option already exists.
+#   Parameters:
+#     $1 - The name of the argument or option to check.
+#   Returns:
+#     0 - If the argument or option exists.
+#     1 - If the argument or option does not exist.
 __args_already_exists() {
     local type
     local i=0
@@ -74,7 +85,10 @@ __args_already_exists() {
     return 1;
 }
 
-# Swap options
+# Swap the values of two options in the __ARGS array.
+#   Parameters:
+#     $1 - The index of the first option.
+#     $2 - The index of the second option.
 __args_swap_options() {
     local i
     local action
@@ -162,11 +176,15 @@ __args_swap_options() {
     return 0
 }
 
-# Sort by asc optional arguments
+# Sort the options in the __ARGS array based on their properties.
 __args_sort() {
-    local max="$((${__ARGS[option.size]} - 1))"
+    if [[ "true" == "${__ARGS[sorted]}" ]]; then
+        return 0
+    fi
+    local max
     local i
     local j
+    max="$((${__ARGS[option.size]} - 1))"
     while [[ ${max} -gt 0 ]]; do
         i=0
         j=1
@@ -199,9 +217,30 @@ __args_sort() {
         done
         max=$((max - 1))
     done
+    __ARGS[sorted]="true"
     return 0
 }
 
+__args_echo_error() {
+    local str
+    # generate usage message
+    if [[ -n "${__ARGS[program.name]}" ]]; then
+        str="${__ARGS[program.name]##*/}"
+    else
+        str="${1##*/}"
+    fi
+    shift
+    >&2 echo "${str}: $*"
+    return 0
+}
+
+# Check if the value is an alternative value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is an alternative value.
+#     1 - If the value is not an alternative value.
 __args_parse_option_is_alternative_value() {
     local index="$1"
     local value="$2"
@@ -218,6 +257,13 @@ __args_parse_option_is_alternative_value() {
     return 1
 }
 
+# Check if the value is an alternative assignment value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is an alternative assignment value.
+#     1 - If the value is not an alternative assignment value.
 __args_parse_option_is_alternative_assign_value() {
     local index="$1"
     local value="$2"
@@ -234,6 +280,13 @@ __args_parse_option_is_alternative_assign_value() {
     return 1
 }
 
+# Check if the value is a valid value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is a valid value.
+#     1 - If the value is not a valid value.
 __args_parse_option_is_value() {
     local index="$1"
     local value="$2"
@@ -255,6 +308,13 @@ __args_parse_option_is_value() {
     return 1
 }
 
+# Check if the value is an assignment value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is an assignment value.
+#     1 - If the value is not an assignment value.
 __args_parse_option_is_assign_value() {
     local index="$1"
     local value="$2"
@@ -276,6 +336,13 @@ __args_parse_option_is_assign_value() {
     return 1
 }
 
+# Check if the value is a multi-short value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is a multi-short value.
+#     1 - If the value is not a multi-short value.
 __args_parse_option_is_multi_short_value() {
     local index="$1"
     local value="$2"
@@ -292,6 +359,13 @@ __args_parse_option_is_multi_short_value() {
     return 1
 }
 
+# Check if the value is a multi-short assignment value for a specific option.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to check.
+#   Returns:
+#     0 - If the value is a multi-short assignment value.
+#     1 - If the value is not a multi-short assignment value.
 __args_parse_option_on_multi_short_value() {
     local index="$1"
     local value="$2"
@@ -308,6 +382,10 @@ __args_parse_option_on_multi_short_value() {
     return 1
 }
 
+# Assign a value to an option in the ARGS array.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The value to assign.
 __args_parse_assign_option_value() {
     local index="$1"
     local value="$2"
@@ -325,6 +403,11 @@ __args_parse_assign_option_value() {
     return 0
 }
 
+# Assign a multi-value to an option in the ARGS array.
+#   Parameters:
+#     $1 - The index of the option.
+#     $2 - The index value.
+#     $3 - The value to assign.
 __args_parse_assign_option_multi_values() {
     local index="$1"
     local index_value="$2"
@@ -348,59 +431,66 @@ __args_parse_assign_option_multi_values() {
     return 0
 }
 
-# Set the program name
-#   params:
-#     $1  Name of program
-#   example:
-#     args_set_program.name "my_script"
+# Set the program name.
+#   Parameters:
+#     $1 - The name of the program.
 args_set_program_name() {
     __ARGS[program.name]="$1"
+    return 0
 }
 
-# Set a usage description
-#   params:
-#     $*  Concat all arguments
-#   example:
-#     args_set_description "Your description " "message"
+# Set a description for the usage message.
+#   Parameters:
+#     $* - The description message.
+#   Examples:
+#     args_set_description "Your description message"
+#     args_set_description "Your" "description" "message" "with" "multiple" "arguments"
 args_set_description() {
     __ARGS[usage.description]="$*"
+    return 0
 }
 
-# Set a epilog description
-#   params:
-#     $*  Concat all arguments
-#   example:
-#     args_set_epilog "Your epilog " "message"
+# Set an epilog for the usage message.
+#   Parameters:
+#     $* - The epilog message.
+#   Examples:
+#     args_set_epilog "Your epilog message"
+#     args_set_epilog "Your" "epilog" "message" "with" "multiple" "arguments"
 args_set_epilog() {
     __ARGS[usage.epilog]="$*"
+    return 0
 }
 
-# Set a full usage message
-#   example:
-#     args_set_usage "Your usage " "message"
+# Set the usage message.
+#   Parameters:
+#     $* - The usage message.
+#   Examples:
+#     args_set_usage "Your usage message"
+#     args_set_usage "Your" "usage" "message" "with" "multiple" "arguments"
 args_set_usage() {
     __ARGS[usage]="$*"
+    return 0
 }
 
-# Set the widths of usage message
-#   params:
-#     $1  Padding
-#     $2  Argument
-#     $3  Separator
-#     $4  Help
-#   example:
-#     args_set_usage_widths 2 20 2 56
+# Set the widths for the usage message.
+#   Parameters:
+#     $1 - Padding width.
+#     $2 - Argument width.
+#     $3 - Separator width.
+#     $4 - Help width.
+#   Examples:
 #     args_set_usage_widths 2 56 2 20
 args_set_usage_widths() {
     __ARGS[usage.width.padding]="$1"
     __ARGS[usage.width.argument]="$2"
     __ARGS[usage.width.separator]="$3"
     __ARGS[usage.width.help]="$4"
+    return 0
 }
 
 # Set if args_parse_arguments can be accept a single '-' for a long option.
-#   param:
-#     $1  Alternative mode (true/false)
+#   Parameters:
+#     $1 - Alternative mode (true/false).
 args_set_alternative() {
     if [[ "true" == "$1" ]] || [[ "false" == "$1" ]]; then
         __ARGS[alternative]="$1"
@@ -411,9 +501,9 @@ args_set_alternative() {
     fi
 }
 
-# Check if argument is exists in argv
-#   param:
-#     $1  Argument name
+# Check if argument is exists in argv.
+#   Parameters:
+#     $1 - Argument name.
 args_isexists() {
     local i
     local j
@@ -458,9 +548,9 @@ args_isexists() {
     return 1
 }
 
-# Check the count of argument in argv
-#   param:
-#     $1  Argument name
+# Check the count of argument in argv.
+#   Parameters:
+#     $1 - Argument name.
 args_count() {
     local name
     if [[ "$1" == "--"* ]]; then
@@ -498,19 +588,20 @@ args_count() {
     return 1
 }
 
-# Add a argument
-#   option params:
-#     --action    Action (append, count, store, store_false, store_true)
-#     --choices   List of valid values (separate by spaces)
-#     --default   Default value
-#     --dest      Destination variable
-#     --flag      Add a optional argument
-#     --help      Usage helper
-#     --metavar   Usage argument name (if not set use long/short name)
-#     --name      Set the name of positionnal argument
-#     --nargs     The number of arguments that should be consumed
-#     --required  Is required if exists
-#   example:
+# Add a argument.
+#   Parameters:
+#     --action {append, count, store, store_false, store_true}
+#                         The action of argument (default: store).
+#     --choices CHOICES   List of valid values (separate by spaces).
+#     --default DEFAULT   Default(s) value(s) (multi separate by spaces).
+#     --dest DESTINATION  Destination variable (global scope).
+#     --flag FLAG         Add a optional argument.
+#     --help HELP         Usage helper.
+#     --metavar METAVAR   Usage argument name (if not set use long/short name).
+#     --name NAME         Set the name of positionnal argument.
+#     --nargs NARGS       The number of arguments that should be consumed.
+#     --required          Is required if exists.
+#   Example:
 #     args_add_argument --help="help of FOO" --dest="FOO" -- "FOO"
 args_add_argument() {
     local action="store"
@@ -599,7 +690,7 @@ args_add_argument() {
                 nargs="${1#*=}"
                 shift;;
             "--required")
-                required=true
+                required="true"
                 shift;;
             "--name")
                 if [[ $# -le 1 ]]; then
@@ -680,10 +771,17 @@ args_add_argument() {
         fi
         action="infinite"
     fi
+    if [[ "?" == "${nargs}" ]]; then
+        nargs=0
+    fi
 
     if [[ "${nargs}" -gt 1 ]]; then
         # default
         if [[ -n "${default}" ]]; then
+            # save last IFS
+            local old_ifs
+            old_ifs="${IFS}"
+            IFS=$' '
             # get number of word
             local word
             local word_nb=0
@@ -691,6 +789,7 @@ args_add_argument() {
                 word+=""
                 word_nb=$((word_nb + 1))
             done
+            IFS="${old_ifs}"
             if [[ "${word_nb}" -ne "${nargs}" ]]; then
                 >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: number word of '--default' (${word_nb}) is not the same of '--nargs' (${nargs})"
                 return 1
@@ -699,6 +798,27 @@ args_add_argument() {
         # choices
         if [[ -n "${choices}" ]]; then
             >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' can't used with '--nargs'"
+            return 1
+        fi
+    fi
+
+    if [[ -n "${default}" ]] && [[ -n "${choices}" ]]; then
+        local default_exists="false"
+        # save last IFS
+        local old_ifs
+        old_ifs="${IFS}"
+        IFS=$' '
+        # check if default exists on choices
+        local word
+        for word in ${choices}; do
+            if [[ "${word}" == "${default}" ]]; then
+                default_exists="true"
+                break
+            fi
+        done
+        IFS="${old_ifs}"
+        if [[ "false" == "${default_exists}" ]]; then
+            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: default value '${default}' not present on choices values"
             return 1
         fi
     fi
@@ -845,6 +965,7 @@ args_add_argument() {
         __ARGS[option.${__ARGS[option.size]}.nargs]="${nargs}"
         __ARGS[option.size]=$((${__ARGS[option.size]} + 1))
     fi
+    __ARGS[sorted]="false"
     return 0
 }
 
@@ -926,10 +1047,10 @@ args_debug_values() {
     return 0
 }
 
-# Show/Generate usage message
+# Show/Generate usage line message
 #   params:
 #     $1  Name/Path of script
-args_usage() {
+args_usage_line() {
     if [[ -n "${__ARGS[usage]}" ]]; then
         echo "${__ARGS[usage]}"
     else
@@ -939,7 +1060,7 @@ args_usage() {
         local str
         local max_col
         local current_col=0
-        local has_max_col=false
+        local has_max_col="false"
         max_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))"
         # generate usage message
         if [[ -n "${__ARGS[program.name]}" ]]; then
@@ -967,6 +1088,8 @@ args_usage() {
                 option+=" "
                 if [[ -n "${__ARGS[option.${i}.metavar]}" ]]; then
                     option+="${__ARGS[option.${i}.metavar]}"
+                elif [[ -n "${__ARGS[option.${i}.choices]}" ]]; then
+                    option+="{${__ARGS[option.${i}.choices]// /,}}"
                 else
                     if [[ "${__ARGS[option.${i}.long.size]}" -ne 0 ]]; then
                         local option_argument="${__ARGS[option.${i}.long.0]^^}"
@@ -983,7 +1106,7 @@ args_usage() {
                 option+="]"
             fi
             if [[ "$((current_col + ${#option}))" -gt "${max_col}" ]]; then
-                has_max_col=true
+                has_max_col="true"
                 str+=$'\n'
                 j=0
                 while [[ "${j}" -lt "${usage_basename_length}" ]]; do
@@ -997,7 +1120,7 @@ args_usage() {
             i=$((i + 1))
         done
         if [[ "${__ARGS[argument.size]}" -ne 0 ]]; then
-            if ${has_max_col} || [[ "$((current_col + 3))" -gt "${max_col}" ]]; then
+            if [[ "true" == "${has_max_col}" ]] || [[ "$((current_col + 3))" -gt "${max_col}" ]]; then
                 str+=$'\n'
                 j=0
                 while [[ "${j}" -lt "${usage_basename_length}" ]]; do
@@ -1022,12 +1145,19 @@ args_usage() {
             local option=""
             option+=" "
             if [[ "true" == "${__ARGS[argument.${i}.required]}" ]]; then
-                option+="${__ARGS[argument.${i}.name]}"
+                if [[ -n "${__ARGS[argument.${i}.choices]}" ]]; then
+                    option+="{${__ARGS[argument.${i}.choices]// /,}}"
+                else
+                    option+="${__ARGS[argument.${i}.name]}"
+                fi
             else
-                option+="[${__ARGS[argument.${i}.name]}]"
+                if [[ -n "${__ARGS[argument.${i}.choices]}" ]]; then
+                    option+="[{${__ARGS[argument.${i}.choices]// /,}}]"
+                else
+                    option+="[${__ARGS[argument.${i}.name]}]"
+                fi
             fi
             if [[ "$((current_col + ${#option}))" -gt "${max_col}" ]]; then
-                has_max_col=true
                 str+=$'\n'
                 j=0
                 while [[ "${j}" -lt "${usage_basename_length}" ]]; do
@@ -1041,6 +1171,27 @@ args_usage() {
             i=$((i + 1))
         done
         str+=$'\n'
+        echo -n "${str}"
+    fi
+    return 0
+}
+
+# Show/Generate usage message
+#   params:
+#     $1  Name/Path of script
+args_usage() {
+    if [[ -n "${__ARGS[usage]}" ]]; then
+        echo "${__ARGS[usage]}"
+    else
+        local i
+        local j
+        local str
+        local max_col
+        local current_col=0
+        local has_max_col="false"
+        max_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))"
+        args_usage_line "$1"
+        str=""
         if [[ -n "${__ARGS[usage.description]}" ]]; then
             str+=$'\n'
             str+="${__ARGS[usage.description]}"
@@ -1059,7 +1210,11 @@ args_usage() {
                 j=$((j + 1))
             done
             local option=""
-            option+="${__ARGS[argument.${i}.name]}"
+            if [[ -n "${__ARGS[argument.${i}.choices]}" ]]; then
+                option+="{${__ARGS[argument.${i}.choices]// /,}}"
+            else
+                option+="${__ARGS[argument.${i}.name]}"
+            fi
             str+="${option}"
             if [[ -n "${__ARGS[argument.${i}.help]}" ]]; then
                 if [[ "${#option}" -gt "${__ARGS[usage.width.argument]}" ]]; then
@@ -1077,6 +1232,10 @@ args_usage() {
                     done
                 fi
                 current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                # save last IFS
+                local old_ifs
+                old_ifs="${IFS}"
+                IFS=$' \t\n'
                 local word=""
                 for word in ${__ARGS[argument.${i}.help]}; do
                     if [[ "$((current_col + ${#word} + 1))" -gt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))" ]]; then
@@ -1091,6 +1250,7 @@ args_usage() {
                     str+=" ${word}"
                     current_col="$((current_col + ${#word} + 1))"
                 done
+                IFS="${old_ifs}"
             fi
             str+=$'\n'
             i=$((i + 1))
@@ -1126,6 +1286,8 @@ args_usage() {
                 option+=" "
                 if [[ -n "${__ARGS[option.${i}.metavar]}" ]]; then
                     option+="${__ARGS[option.${i}.metavar]}"
+                elif [[ -n "${__ARGS[option.${i}.choices]}" ]]; then
+                    option+="{${__ARGS[option.${i}.choices]// /,}}"
                 else
                     if [[ "${__ARGS[option.${i}.long.size]}" -ne 0 ]]; then
                         local option_argument="${__ARGS[option.${i}.long.0]^^}"
@@ -1156,6 +1318,10 @@ args_usage() {
                     done
                 fi
                 current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                # save last IFS
+                local old_ifs
+                old_ifs="${IFS}"
+                IFS=$' \t\n'
                 local word=""
                 for word in ${__ARGS[option.${i}.help]}; do
                     if [[ "$((current_col + ${#word} + 1))" -gt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))" ]]; then
@@ -1170,6 +1336,7 @@ args_usage() {
                     str+=" ${word}"
                     current_col="$((current_col + ${#word} + 1))"
                 done
+                IFS="${old_ifs}"
             fi
             str+=$'\n'
             i=$((i + 1))
@@ -1203,6 +1370,7 @@ args_parse_arguments() {
         help_options+=("--help")
         args_add_argument --action="store_true" --help="print this help message" -- "--help"
     fi
+    __args_sort
     local i
     local j
     local positional_index=0
@@ -1215,9 +1383,15 @@ args_parse_arguments() {
             break
         fi
         for i in "${!help_options[@]}"; do
+            if [[ "true" == "${__ARGS[alternative]}" ]] && \
+               [[ "--help" == "${help_options[i]}" ]] && \
+               [[ "-help" == "${1}" ]]; then
+                args_usage "${binary_name}"
+                return "${ARGS_USAGE_RETURN_CODE}"
+            fi
             if [[ "${1}" == "${help_options[i]}" ]]; then
                 args_usage "${binary_name}"
-                return 64
+                return "${ARGS_USAGE_RETURN_CODE}"
             fi
         done
         i=0
@@ -1230,7 +1404,8 @@ args_parse_arguments() {
                         local nargs=0
                         while [[ "${nargs}" -lt "${__ARGS[option.${i}.nargs]}" ]]; do
                             if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                                >&2 echo "${binary_name}: option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
                                 return 1
                             fi
                             __args_parse_assign_option_multi_values "${i}" "${nargs}" "$2"
@@ -1258,13 +1433,15 @@ args_parse_arguments() {
                     elif [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
                         local value=""
                         if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                            >&2 echo "${binary_name}: option '$1' require a argument"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '$1' require a argument"
                             return 1
                         fi
                         value="$2"
                         if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                            [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                            >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                             return 1
                         fi
                         __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
@@ -1275,13 +1452,15 @@ args_parse_arguments() {
                         local value=""
                         if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
                             if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                                >&2 echo "${binary_name}: option '$1' require a argument"
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '$1' require a argument"
                                 return 1
                             fi
                             value="$2"
                             if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                             [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                                >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                                 return 1
                             fi
                             shift
@@ -1305,7 +1484,8 @@ args_parse_arguments() {
                         value="${1#*=}"
                         if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                            [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                            >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                             return 1
                         fi
                         if [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
@@ -1317,7 +1497,8 @@ args_parse_arguments() {
                         __ARGS[option.${i}.exists]="true"
                         shift
                     else
-                        >&2 echo "${binary_name}: option '$1' don't take a argument"
+                        args_usage_line "${binary_name}"
+                        __args_echo_error "${binary_name}" "option '$1' don't take a argument"
                         return 1
                     fi
                     break
@@ -1337,7 +1518,8 @@ args_parse_arguments() {
                     local nargs=0
                     while [[ "${nargs}" -lt "${__ARGS[option.${i}.nargs]}" ]]; do
                         if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                            >&2 echo "${binary_name}: option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
                             return 1
                         fi
                         __args_parse_assign_option_multi_values "${i}" "${nargs}" "$2"
@@ -1365,13 +1547,15 @@ args_parse_arguments() {
                 elif [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
                     local value=""
                     if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                        >&2 echo "${binary_name}: option '$1' require a argument"
+                        args_usage_line "${binary_name}"
+                        __args_echo_error "${binary_name}" "option '$1' require a argument"
                         return 1
                     fi
                     value="$2"
                     if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                        [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                        >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                        args_usage_line "${binary_name}"
+                        __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                         return 1
                     fi
                     __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
@@ -1382,13 +1566,15 @@ args_parse_arguments() {
                     local value=""
                     if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
                         if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                            >&2 echo "${binary_name}: option '$1' require a argument"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '$1' require a argument"
                             return 1
                         fi
                         value="$2"
                         if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                            [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                            >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                             return 1
                         fi
                         shift
@@ -1412,7 +1598,8 @@ args_parse_arguments() {
                     value="${1#*=}"
                     if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
                        [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                        >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                        args_usage_line "${binary_name}"
+                        __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                         return 1
                     fi
                     if [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
@@ -1424,7 +1611,8 @@ args_parse_arguments() {
                     __ARGS[option.${i}.exists]="true"
                     shift
                 else
-                    >&2 echo "${binary_name}: option '$1' don't take a argument"
+                    args_usage_line "${binary_name}"
+                    __args_echo_error "${binary_name}" "option '$1' don't take a argument"
                     return 1
                 fi
                 break
@@ -1434,7 +1622,8 @@ args_parse_arguments() {
                    [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
                     value="${1:2}"
                     if [[ -n "${__ARGS[option.${i}.choices]}" ]] && [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                        >&2 echo "${binary_name}: option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                        args_usage_line "${binary_name}"
+                        __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
                         return 1
                     fi
                     if [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
@@ -1468,7 +1657,8 @@ args_parse_arguments() {
                                         value=""
                                         if [[ -n "${__ARGS[option.${i_short}.choices]}" ]] && \
                                            [[ ! "${__ARGS[option.${i_short}.choices]}" =~ (^|[[:space:]])"${value_short}"($|[[:space:]]) ]]; then
-                                            >&2 echo "${binary_name}: option '-${value_short}' is not a valid choise (${__ARGS[option.${i_short}.choices]// /, })"
+                                            args_usage_line "${binary_name}"
+                                            __args_echo_error "${binary_name}" "option '${value_short}' is not a valid choise (${__ARGS[option.${i_short}.choices]// /, })"
                                             return 1
                                         fi
                                     elif [[ $# -gt 1 ]] && \
@@ -1477,12 +1667,14 @@ args_parse_arguments() {
                                         value=""
                                         if [[ -n "${__ARGS[option.${i_short}.choices]}" ]] && \
                                            [[ ! "${__ARGS[option.${i_short}.choices]}" =~ (^|[[:space:]])"${value_short}"($|[[:space:]]) ]]; then
-                                            >&2 echo "${binary_name}: option '-${value_short}' is not a valid choise (${__ARGS[option.${i_short}.choices]// /, })"
+                                            args_usage_line "${binary_name}"
+                                            __args_echo_error "${binary_name}" "option '${value_short}' is not a valid choise (${__ARGS[option.${i_short}.choices]// /, })"
                                             return 1
                                         fi
                                         shift
                                     else
-                                        >&2 echo "${binary_name}: option '-${value_short}' require a argument"
+                                        args_usage_line "${binary_name}"
+                                        __args_echo_error "${binary_name}" "option '${value_short}' require a argument"
                                         return 1
                                     fi
                                 fi
@@ -1500,7 +1692,8 @@ args_parse_arguments() {
                             i_short=$((i_short + 1))
                         done
                         if [[ "${i_short}" -eq "${__ARGS[option.size]}" ]]; then
-                            >&2 echo "${binary_name}: invalid option -- '-${value_short}'"
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "invalid option -- '-${value_short}'"
                             return 1
                         fi
                     done
@@ -1512,16 +1705,17 @@ args_parse_arguments() {
         done
         if [[ "${i}" -eq "${__ARGS[option.size]}" ]]; then
             if [[ "$1" == "--"* ]]; then
-                >&2 echo "${binary_name}: invalid option -- '$1'"
+                __args_echo_error "${binary_name}" "invalid option -- '$1'"
                 return 1
             elif [[ "$1" == "-"* ]]; then
-                >&2 echo "${binary_name}: invalid option -- '${1:0:2}'"
+                __args_echo_error "${binary_name}" "invalid option -- '${1:0:2}'"
                 return 1
             fi
             if [[ "${positional_index}" -lt "${__ARGS[argument.size]}" ]]; then
                 if [[ -n "${__ARGS[argument.${positional_index}.choices]}" ]] && \
                    [[ ! "${__ARGS[argument.${positional_index}.choices]}" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
-                    >&2 echo "${binary_name}: argument '$1' is not a valid choise (${__ARGS[argument.${positional_index}.choices]// /, })"
+                    args_usage_line "${binary_name}"
+                    __args_echo_error "${binary_name}" "argument '$1' is not a valid choise (${__ARGS[argument.${positional_index}.choices]// /, })"
                     return 1
                 fi
                 local name=""
@@ -1532,7 +1726,8 @@ args_parse_arguments() {
                 positional_index=$((positional_index + 1))
                 shift
             else
-                >&2 echo "${binary_name}: extra argument(s) '$*'"
+                args_usage_line "${binary_name}"
+                __args_echo_error "${binary_name}" "extra argument(s) '$*'"
                 return 1
             fi
         fi
@@ -1542,7 +1737,8 @@ args_parse_arguments() {
         while [[ "${positional_index}" -lt "${__ARGS[argument.size]}" ]]; do
             if [[ -n "${__ARGS[argument.${positional_index}.choices]}" ]] && \
                [[ ! "${__ARGS[argument.${positional_index}.choices]}" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
-                >&2 echo "${binary_name}: argument '$1' is not a valid choise (${__ARGS[argument.${j}.choices]// /, })"
+                args_usage_line "${binary_name}"
+                __args_echo_error "${binary_name}" "argument '$1' is not a valid choise (${__ARGS[argument.${j}.choices]// /, })"
                 return 1
             fi
             local name=""
@@ -1558,7 +1754,8 @@ args_parse_arguments() {
         done
     fi
     if [[ $# -ne 0 ]]; then
-        >&2 echo "${binary_name}: extra argument(s) '$*'"
+        args_usage_line "${binary_name}"
+        __args_echo_error "${binary_name}" "extra argument(s) '$*'"
         return 1
     fi
     # Required
@@ -1572,7 +1769,8 @@ args_parse_arguments() {
                 elif [[ "${__ARGS[option.${i}.long.size]}" -ne 0 ]]; then
                     name="--${__ARGS[option.${i}.long.0]}"
                 fi
-                >&2 echo "${binary_name}: option '${name}' is required"
+                args_usage_line "${binary_name}"
+                __args_echo_error "${binary_name}" "option '${name}' is required"
                 return 1
             fi
         fi
@@ -1582,7 +1780,8 @@ args_parse_arguments() {
     while [[ "${i}" -lt "${__ARGS[argument.size]}" ]]; do
         if [[ "true" == "${__ARGS[argument.${i}.required]}" ]]; then
             if [[ "false" == "${__ARGS[argument.${i}.exists]}" ]]; then
-                >&2 echo "${binary_name}: argument '${__ARGS[argument.${i}.name]}' is required"
+                args_usage_line "${binary_name}"
+                __args_echo_error "${binary_name}" "argument '${__ARGS[argument.${i}.name]}' is required"
                 return 1
             fi
         fi
@@ -1595,12 +1794,17 @@ args_parse_arguments() {
             if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]] || \
                [[ "infinite" == "${__ARGS[option.${i}.action]}" ]] || \
                [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
-                local index_default=0
+                # save last IFS
+                local old_ifs
+                old_ifs="${IFS}"
+                IFS=$' '
                 local value_default
+                local index_default=0
                 for value_default in ${__ARGS[option.${i}.default]}; do
                     __args_parse_assign_option_multi_values "${i}" "${index_default}" "${value_default}"
                     index_default=$((index_default + 1))
                 done
+                IFS="${old_ifs}"
                 if [[ "infinite" == "${__ARGS[option.${i}.action]}" ]] || \
                    [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
                     __ARGS[option.${i}.count]="${index_default}"
@@ -1668,5 +1872,5 @@ args_parse_arguments() {
     return 0
 }
 
-# Clean argparser global vairables at source
+# source call clean args
 args_clean
