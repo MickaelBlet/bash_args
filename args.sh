@@ -48,7 +48,7 @@ args_clean() {
     __ARGS[argument.size]=0
     # optional argument
     __ARGS[option.size]=0
-    # indicate if argument is sorted
+    # indicate if arguments are sorted
     __ARGS[sorted]="false"
     return 0
 }
@@ -1069,6 +1069,8 @@ args_usage_line() {
             str="usage: ${1##*/}"
         fi
         local usage_basename_length="${#str}"
+        local jump_spaces
+        printf -v jump_spaces "%*s" "${usage_basename_length}" ""
         current_col="${usage_basename_length}"
         i=0
         while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
@@ -1108,11 +1110,7 @@ args_usage_line() {
             if [[ "$((current_col + ${#option}))" -gt "${max_col}" ]]; then
                 has_max_col="true"
                 str+=$'\n'
-                j=0
-                while [[ "${j}" -lt "${usage_basename_length}" ]]; do
-                    str+=" "
-                    j=$((j + 1))
-                done
+                str+="${jump_spaces}"
                 current_col="${usage_basename_length}"
             fi
             str+="${option}"
@@ -1122,18 +1120,10 @@ args_usage_line() {
         if [[ "${__ARGS[argument.size]}" -ne 0 ]]; then
             if [[ "true" == "${has_max_col}" ]] || [[ "$((current_col + 3))" -gt "${max_col}" ]]; then
                 str+=$'\n'
-                j=0
-                while [[ "${j}" -lt "${usage_basename_length}" ]]; do
-                    str+=" "
-                    j=$((j + 1))
-                done
+                str+="${jump_spaces}"
                 str+=" --"
                 str+=$'\n'
-                j=0
-                while [[ "${j}" -lt "${usage_basename_length}" ]]; do
-                    str+=" "
-                    j=$((j + 1))
-                done
+                str+="${jump_spaces}"
                 current_col="${usage_basename_length}"
             else
                 str+=" --"
@@ -1159,11 +1149,7 @@ args_usage_line() {
             fi
             if [[ "$((current_col + ${#option}))" -gt "${max_col}" ]]; then
                 str+=$'\n'
-                j=0
-                while [[ "${j}" -lt "${usage_basename_length}" ]]; do
-                    str+=" "
-                    j=$((j + 1))
-                done
+                str+="${jump_spaces}"
                 current_col="${usage_basename_length}"
             fi
             str+="${option}"
@@ -1189,6 +1175,11 @@ args_usage() {
         local max_col
         local current_col=0
         local has_max_col="false"
+        local jump_spaces
+        local jump_spaces_padding
+        local jump_spaces_helper
+        printf -v jump_spaces_padding "%*s" "${__ARGS[usage.width.padding]}" ""
+        printf -v jump_spaces_helper "%*s" "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))" ""
         max_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))"
         args_usage_line "$1"
         str=""
@@ -1204,11 +1195,7 @@ args_usage() {
         fi
         i=0
         while [[ "${i}" -lt "${__ARGS[argument.size]}" ]]; do
-            j=0
-            while [[ "${j}" -lt "${__ARGS[usage.width.padding]}" ]]; do
-                str+=" "
-                j=$((j + 1))
-            done
+            str+="${jump_spaces_padding}"
             local option=""
             if [[ -n "${__ARGS[argument.${i}.choices]}" ]]; then
                 option+="{${__ARGS[argument.${i}.choices]// /,}}"
@@ -1219,19 +1206,12 @@ args_usage() {
             if [[ -n "${__ARGS[argument.${i}.help]}" ]]; then
                 if [[ "${#option}" -gt "${__ARGS[usage.width.argument]}" ]]; then
                     str+=$'\n'
-                    j=0
-                    while [[ "${j}" -lt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                        str+=" "
-                        j=$((j + 1))
-                    done
+                    str+="${jump_spaces_helper}"
                 else
-                    j=0
-                    while [[ "${j}" -lt "$((${__ARGS[usage.width.argument]} - ${#option} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                        str+=" "
-                        j=$((j + 1))
-                    done
+                    printf -v jump_spaces "%*s" "$((${__ARGS[usage.width.argument]} - ${#option} + ${__ARGS[usage.width.separator]} - 1))" ""
+                    str+="${jump_spaces}"
                 fi
-                current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                current_col="${#jump_spaces_helper}"
                 # save last IFS
                 local old_ifs
                 old_ifs="${IFS}"
@@ -1240,12 +1220,8 @@ args_usage() {
                 for word in ${__ARGS[argument.${i}.help]}; do
                     if [[ "$((current_col + ${#word} + 1))" -gt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))" ]]; then
                         str+=$'\n'
-                        j=0
-                        while [[ "${j}" -lt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                            str+=" "
-                            j=$((j + 1))
-                        done
-                        current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                        str+="${jump_spaces_helper}"
+                        current_col="${#jump_spaces_helper}"
                     fi
                     str+=" ${word}"
                     current_col="$((current_col + ${#word} + 1))"
@@ -1262,11 +1238,7 @@ args_usage() {
         fi
         i=0
         while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
-            j=0
-            while [[ "${j}" -lt "${__ARGS[usage.width.padding]}" ]]; do
-                str+=" "
-                j=$((j + 1))
-            done
+            str+="${jump_spaces_padding}"
             local option=""
             local type
             for type in "short" "long"; do
@@ -1305,19 +1277,12 @@ args_usage() {
             if [[ -n "${__ARGS[option.${i}.help]}" ]]; then
                 if [[ "${#option}" -gt "${__ARGS[usage.width.argument]}" ]]; then
                     str+=$'\n'
-                    j=0
-                    while [[ "${j}" -lt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                        str+=" "
-                        j=$((j + 1))
-                    done
+                    str+="${jump_spaces_helper}"
                 else
-                    j=0
-                    while [[ "${j}" -lt "$((${__ARGS[usage.width.argument]} - ${#option} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                        str+=" "
-                        j=$((j + 1))
-                    done
+                    printf -v jump_spaces "%*s" "$((${__ARGS[usage.width.argument]} - ${#option} + ${__ARGS[usage.width.separator]} - 1))" ""
+                    str+="${jump_spaces}"
                 fi
-                current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                current_col="${#jump_spaces_helper}"
                 # save last IFS
                 local old_ifs
                 old_ifs="${IFS}"
@@ -1326,12 +1291,8 @@ args_usage() {
                 for word in ${__ARGS[option.${i}.help]}; do
                     if [[ "$((current_col + ${#word} + 1))" -gt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} + ${__ARGS[usage.width.help]}))" ]]; then
                         str+=$'\n'
-                        j=0
-                        while [[ "${j}" -lt "$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))" ]]; do
-                            str+=" "
-                            j=$((j + 1))
-                        done
-                        current_col="$((${__ARGS[usage.width.padding]} + ${__ARGS[usage.width.argument]} + ${__ARGS[usage.width.separator]} - 1))"
+                        str+="${jump_spaces_helper}"
+                        current_col="${#jump_spaces_helper}"
                     fi
                     str+=" ${word}"
                     current_col="$((current_col + ${#word} + 1))"
