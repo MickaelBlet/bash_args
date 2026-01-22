@@ -1,40 +1,77 @@
 # Args
 
-Parse and store arguments/options from `argv` natively on **bash**.  
-Inspired by the Python library [argparse](https://python.readthedocs.io/en/latest/library/argparse.html).  
-Compatible with **bash** version >= **4.2.0**.  
-Documentations available at [documentations](#documentations).
+A powerful and flexible argument parser for **Bash** scripts, inspired by Python's [argparse](https://python.readthedocs.io/en/latest/library/argparse.html). Parse command-line arguments and options natively in Bash with automatic help generation, type validation, and more.
 
-## Quikstart
+**Compatible with Bash version >= 4.2.0**
+
+## Features
+
+- **Positional Arguments** - Define required or optional positional parameters
+- **Optional Arguments** - Support for short (`-f`) and long (`--flag`) options
+- **Multiple Actions** - Store values, booleans, counts, or append to lists
+- **Validation** - Enforce choices, required arguments, and value constraints
+- **Flexible Parsing** - Support for `nargs`, default values, and custom metavar
+- **Auto-Generated Help** - Automatic `-h`/`--help` with formatted usage messages
+- **Destination Variables** - Store parsed values directly to custom variables
+- **Alternative Mode** - Accept single dash for long options (`-option` instead of `--option`)
+
+For detailed documentation, see [Documentation](#documentation).
+
+## Installation
+
+Simply source the `args.sh` script in your Bash script:
+
+```bash
+source "args.sh"
+```
+
+Or use an absolute/relative path:
+
+```bash
+source "/path/to/args.sh"
+```
+
+## Quickstart
+
+This example demonstrates the main features of the argument parser:
 
 ```bash
 #!/usr/bin/env bash
 
 set -euo pipefail
 
+# Source the args.sh library
 source "args.sh"
 
+# Set description and epilog for help message
 args_set_description "example" "of" "description"
 args_set_epilog "example of epilog"
 
+# Add a required positional argument
 args_add_argument \
     --help "take the first argument" \
     --dest "ARG1_VALUE" \
     --required \
     -- "ARG1"
+
+# Add a boolean flag (--print-hello or -p)
 args_add_argument \
     --flag="-p" --flag="--print-hello" \
     --help="print hello" \
     --action="store_true" \
     --dest="DO_HELLO"
+
+# Add an optional argument with a default value
 args_add_argument \
     --help="help of option" \
     --metavar="VALUE" \
     --default="24" \
     -- "--option"
 
+# Parse the command-line arguments
 args_parse_arguments "$@"
 
+# Access parsed values using destination variables or the ARGS map
 echo "'ARG1' argument from dest ${ARG1_VALUE:-}"
 echo "'ARG1' argument from map  ${ARGS[ARG1]}"
 echo "'--option' option from map ${ARGS[option]}"
@@ -42,6 +79,8 @@ if ${DO_HELLO:-false}; then
     echo "Hello world"
 fi
 ```
+
+**Example usage:**
 
 ```
 $ ./example/quickstart.sh
@@ -77,7 +116,7 @@ $ ./example/quickstart.sh 42 -p --option 42
 Hello world
 ```
 
-## Documentations
+## Documentation
 
 ### Functions
 
@@ -89,7 +128,7 @@ Hello world
 |[args_count](docs/functions.md#args_count)|Count the number of occurence of argument after parsed.|
 |[args_debug_values](docs/functions.md#args_debug_values)|Show all values of arguments and options.|
 |[args_isexists](docs/functions.md#args_isexists)|Check if argument is exists after parsed.|
-|[args_set_alternative](docs/functions.md#args_set_alternative)|Set if args_parse_arguments can be accept a single '-' for a long option.|
+|[args_set_alternative](docs/functions.md#args_set_alternative)|Set if args_parse_arguments can accept a single '-' for a long option.|
 |[args_set_description](docs/functions.md#args_set_description)|Set a usage description.|
 |[args_set_epilog](docs/functions.md#args_set_epilog)|Set a epilog description.|
 |[args_set_program_name](docs/functions.md#args_set_program_name)|Set the program name for usage message.|
@@ -97,9 +136,11 @@ Hello world
 |[args_set_usage](docs/functions.md#args_set_usage)|Set a full usage message.|
 |[args_usage](docs/functions.md#args_usage)|Show/Generate usage message.|
 
-### Global variables
+### Global Variables
 
-|Name|Description|
-|--:|---|
-|__ARGS|Assossiative array for use internaly in args script.|
-|ARGS|Assossiative array for store after [args_parse_arguments](../README.md#args_parse_arguments).|
+After calling `args_parse_arguments`, parsed values are accessible through these global variables:
+
+|Name|Type|Description|
+|--:|:--:|---|
+|`ARGS`|Associative Array|Stores all parsed argument values. Access using `${ARGS[argument_name]}`|
+|`__ARGS`|Associative Array|Internal storage used by args.sh. Do not modify directly.|
