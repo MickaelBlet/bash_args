@@ -8,12 +8,14 @@ A powerful and flexible argument parser for **Bash** scripts, inspired by Python
 
 - **Positional Arguments** - Define required or optional positional parameters
 - **Optional Arguments** - Support for short (`-f`) and long (`--flag`) options
+- **Option Abbreviation** - Use shortened versions of long options (e.g., `--verb` for `--verbose`)
 - **Multiple Actions** - Store values, booleans, counts, or append to lists
 - **Validation** - Enforce choices, required arguments, and value constraints
 - **Flexible Parsing** - Support for `nargs`, default values, and custom metavar
 - **Auto-Generated Help** - Automatic `-h`/`--help` with formatted usage messages
 - **Destination Variables** - Store parsed values directly to custom variables
 - **Alternative Mode** - Accept single dash for long options (`-option` instead of `--option`)
+- **Strict Mode Compatible** - Fully compatible with `set -euo pipefail` for robust error handling
 
 For detailed documentation, see [Documentation](#documentation).
 
@@ -115,6 +117,100 @@ $ ./example/quickstart.sh 42 -p --option 42
 '--option' option from map 42
 Hello world
 ```
+
+## Option Abbreviation
+
+Args.sh supports automatic abbreviation of long option names, allowing users to type shortened versions as long as they are unambiguous.
+
+### How It Works
+
+When parsing a long option (starting with `--`), if an exact match isn't found, args.sh will attempt to match it as an abbreviation. The abbreviation must uniquely identify one option - if multiple options start with the same prefix, an error is reported.
+
+### Examples
+
+```bash
+# Given options: --verbose, --version, --output, --optimize
+
+# Valid abbreviations:
+./script.sh --verb      # matches --verbose
+./script.sh --vers      # matches --version
+./script.sh --out       # matches --output
+./script.sh --opt       # matches --optimize
+
+# Ambiguous abbreviations (will fail with helpful error):
+./script.sh --ver       # Could match: --verbose OR --version
+./script.sh --o         # Could match: --output OR --optimize
+
+# Works with all syntax forms:
+./script.sh --verb              # boolean flag
+./script.sh --out file.txt      # separate value
+./script.sh --out=file.txt      # assignment syntax
+./script.sh --opt 3             # numeric value
+```
+
+### Abbreviation with Alternative Mode
+
+Abbreviations work seamlessly with alternative mode (single dash for long options):
+
+```bash
+args_set_alternative true
+
+# These all work:
+./script.sh -verbose      # full option name
+./script.sh -verb         # abbreviated
+./script.sh -out=file.txt # abbreviated with assignment
+```
+
+### Error Handling
+
+- **Ambiguous abbreviation**: Lists all matching options
+  ```
+  script.sh: ambiguous option: '--ver' could match: --verbose --version
+  ```
+- **Non-existent abbreviation**: Reports invalid option
+  ```
+  script.sh: invalid option -- '--notfound'
+  ```
+
+### Notes
+
+- Abbreviations only work for **long options** (`--option`), not short options (`-o`)
+- Full option names always work alongside abbreviations
+- Exact matches take precedence over abbreviations
+- Single-character abbreviations work if unambiguous
+
+## Strict Mode Compatibility
+
+Args.sh is fully compatible with Bash strict mode (`set -euo pipefail`), ensuring robust error handling in production scripts.
+
+```bash
+#!/usr/bin/env bash
+
+set -euo pipefail  # Enable strict mode
+
+source "args.sh"
+
+args_add_argument --flag="--output" --action="store" --required
+args_add_argument --flag="--verbose" --action="store_true"
+
+# Errors are handled gracefully with proper usage messages
+args_parse_arguments "$@"
+
+# Access parsed values safely
+echo "Output: ${ARGS[output]}"
+echo "Verbose: ${ARGS[verbose]:-false}"
+```
+
+### Error Handling
+
+All error cases display proper usage information before exiting:
+
+- **Invalid options**: Shows usage line and error message
+- **Missing required options**: Shows usage line and which option is required
+- **Ambiguous abbreviations**: Shows usage line and lists matching options
+- **Invalid choice values**: Shows usage line and valid choices
+
+This ensures users always get helpful feedback, even with `set -e` enabled.
 
 ## Documentation
 

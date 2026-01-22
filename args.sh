@@ -234,6 +234,92 @@ __args_echo_error() {
     return 0
 }
 
+# Find an option by abbreviated long option name.
+#   Parameters:
+#     $1 - The abbreviated option (e.g., "--verb" for "--verbose").
+#     $2 - The binary name for error messages.
+#   Returns:
+#     0 - If exactly one match is found (prints the option index to stdout).
+#     1 - If no match or ambiguous match (prints error to stderr if ambiguous).
+__args_parse_option_find_by_abbrev() {
+    local abbrev="$1"
+    local binary_name="$2"
+    local prefix=""
+    local search_term=""
+
+    # Extract the prefix and search term
+    if [[ "${abbrev}" == "--"* ]]; then
+        prefix="--"
+        search_term="${abbrev:2}"
+    elif [[ "${abbrev}" == "-"* ]]; then
+        prefix="-"
+        search_term="${abbrev:1}"
+    else
+        return 1
+    fi
+
+    # Only abbreviate long options (prefix must be --)
+    if [[ "${prefix}" != "--" ]]; then
+        return 1
+    fi
+
+    # If it contains '=', only abbreviate the part before '='
+    local has_assignment="false"
+    local value_part=""
+    if [[ "${search_term}" == *"="* ]]; then
+        has_assignment="true"
+        value_part="${search_term#*=}"
+        search_term="${search_term%%=*}"
+    fi
+
+    local matches=()
+    local i=0
+    local j
+
+    # Search through all long options
+    while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
+        j=0
+        while [[ "${j}" -lt "${__ARGS[option.${i}.long.size]}" ]]; do
+            local long_opt="${__ARGS[option.${i}.long.${j}]}"
+            # Check if the long option starts with the search term
+            if [[ "${long_opt}" == "${search_term}"* ]]; then
+                matches+=("${i}")
+                break
+            fi
+            j=$((j + 1))
+        done
+        i=$((i + 1))
+    done
+
+    # Check the number of matches
+    if [[ ${#matches[@]} -eq 0 ]]; then
+        # No match found - return empty
+        return 1
+    elif [[ ${#matches[@]} -eq 1 ]]; then
+        # Single match found - output index
+        echo "${matches[0]}"
+        return 0
+    else
+        # Ambiguous abbreviation - print error and output marker
+        local matching_options=()
+        for i in "${matches[@]}"; do
+            j=0
+            while [[ "${j}" -lt "${__ARGS[option.${i}.long.size]}" ]]; do
+                local long_opt="${__ARGS[option.${i}.long.${j}]}"
+                if [[ "${long_opt}" == "${search_term}"* ]]; then
+                    matching_options+=("--${long_opt}")
+                    break
+                fi
+                j=$((j + 1))
+            done
+        done
+        args_usage_line "${binary_name}" >&2
+        __args_echo_error "${binary_name}" "ambiguous option: '${abbrev}' could match: ${matching_options[*]}"
+        echo "AMBIGUOUS"
+        return 1
+    fi
+}
+
 # Check if the value is an alternative value for a specific option.
 #   Parameters:
 #     $1 - The index of the option.
@@ -1665,10 +1751,142 @@ args_parse_arguments() {
             i=$((i + 1))
         done
         if [[ "${i}" -eq "${__ARGS[option.size]}" ]]; then
+            # Try abbreviation matching for long options
+            if [[ "$1" == "--"* ]] || ( [[ "true" == "${__ARGS[alternative]}" ]] && [[ "$1" == "-"* ]] && [[ "$1" != "-"[[:alpha:]] ]] ); then
+                local abbrev_match=""
+                local abbrev_arg="$1"
+
+                # For alternative mode, convert single dash to double dash for abbreviation search
+                if [[ "true" == "${__ARGS[alternative]}" ]] && [[ "$1" == "-"* ]] && [[ "$1" != "-"[[:alpha:]] ]]; then
+                    abbrev_arg="--${1:1}"
+                fi
+
+                # Try to find a match by abbreviation
+                abbrev_match=$(__args_parse_option_find_by_abbrev "${abbrev_arg}" "${binary_name}" || true)
+                if [[ "${abbrev_match}" == "AMBIGUOUS" ]]; then
+                    # Ambiguous match - error already printed, just return
+                    return 1
+                elif [[ -n "${abbrev_match}" ]]; then
+                    # Match found - abbrev_match contains the option index
+                    i="${abbrev_match}"
+
+                    # Now handle the abbreviated option (same logic as exact match)
+                    if [[ "$1" == *"="* ]]; then
+                        # Handle assignment (--opt=value or -opt=value in alternative mode)
+                        if [[ "store" == "${__ARGS[option.${i}.action]}" ]] || \
+                           [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                            local value=""
+                            value="${1#*=}"
+                            if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                               [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                return 1
+                            fi
+                            if [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                                __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
+                            else
+                                __args_parse_assign_option_value "${i}" "${value}"
+                            fi
+                            __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                            __ARGS[option.${i}.exists]="true"
+                            shift
+                        else
+                            args_usage_line "${binary_name}"
+                            __args_echo_error "${binary_name}" "option '$1' don't take a argument"
+                            return 1
+                        fi
+                    else
+                        # Handle non-assignment option
+                        if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]]; then
+                            local option_name="$1"
+                            local nargs=0
+                            while [[ "${nargs}" -lt "${__ARGS[option.${i}.nargs]}" ]]; do
+                                if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                                    args_usage_line "${binary_name}"
+                                    __args_echo_error "${binary_name}" "option '${option_name}' require '${__ARGS[option.${i}.nargs]}' arguments"
+                                    return 1
+                                fi
+                                __args_parse_assign_option_multi_values "${i}" "${nargs}" "$2"
+                                nargs=$((nargs + 1))
+                                shift
+                            done
+                            __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                            __ARGS[option.${i}.exists]="true"
+                            shift
+                        elif [[ "infinite" == "${__ARGS[option.${i}.action]}" ]]; then
+                            while true; do
+                                if [[ $# -le 1 ]] || \
+                                   [[ "--" == "$2" ]] || \
+                                   [[ "$2" =~ ^"-"[[:alpha:]] ]] || \
+                                   [[ "$2" =~ ^"--"[[:alpha:]] ]]; then
+                                    break
+                                fi
+                                __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "$2"
+                                __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                                shift
+                            done
+                            __ARGS[option.${i}.exists]="true"
+                            shift
+                        elif [[ "append" == "${__ARGS[option.${i}.action]}" ]]; then
+                            local value=""
+                            if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '$1' require a argument"
+                                return 1
+                            fi
+                            value="$2"
+                            if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                               [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                return 1
+                            fi
+                            __args_parse_assign_option_multi_values "${i}" "${__ARGS[option.${i}.count]}" "${value}"
+                            __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                            __ARGS[option.${i}.exists]="true"
+                            shift 2
+                        else
+                            local value=""
+                            if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
+                                if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
+                                    args_usage_line "${binary_name}"
+                                    __args_echo_error "${binary_name}" "option '$1' require a argument"
+                                    return 1
+                                fi
+                                value="$2"
+                                if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                                   [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                    args_usage_line "${binary_name}"
+                                    __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                    return 1
+                                fi
+                                shift
+                            elif [[ "store_true" == "${__ARGS[option.${i}.action]}" ]]; then
+                                value="true"
+                            elif [[ "store_false" == "${__ARGS[option.${i}.action]}" ]]; then
+                                value="false"
+                            elif [[ "count" == "${__ARGS[option.${i}.action]}" ]]; then
+                                value=$((${__ARGS[option.${i}.count]} + 1))
+                            fi
+                            __args_parse_assign_option_value "${i}" "${value}"
+                            __ARGS[option.${i}.count]=$((${__ARGS[option.${i}.count]} + 1))
+                            __ARGS[option.${i}.exists]="true"
+                            shift
+                        fi
+                    fi
+                    continue
+                fi
+                # No match found - fall through to invalid option error
+            fi
+
+            # No exact or abbreviated match found - report error
             if [[ "$1" == "--"* ]]; then
+                args_usage_line "${binary_name}"
                 __args_echo_error "${binary_name}" "invalid option -- '$1'"
                 return 1
             elif [[ "$1" == "-"* ]]; then
+                args_usage_line "${binary_name}"
                 __args_echo_error "${binary_name}" "invalid option -- '${1:0:2}'"
                 return 1
             fi

@@ -90,6 +90,26 @@ run_test "set_alternative false rejects single dash" test_set_alternative_false
 run_test "help option auto-added" test_help_option_auto_added
 echo ""
 
+# Run test_abbreviation.sh
+echo -e "${BLUE}Running abbreviation tests...${NC}"
+source "${SCRIPT_DIR}/test_abbreviation.sh"
+run_test "basic abbreviation matching" test_basic_abbreviation
+run_test "abbreviation with separate value" test_abbreviation_with_value
+run_test "abbreviation with equals syntax" test_abbreviation_with_equals
+run_test "ambiguous abbreviation fails" test_ambiguous_abbreviation
+run_test "non-existent abbreviation fails" test_nonexistent_abbreviation
+run_test "full option name still works" test_full_option_with_abbreviation
+run_test "abbreviation with store_true" test_abbreviation_store_true
+run_test "abbreviation with store_false" test_abbreviation_store_false
+run_test "abbreviation with count" test_abbreviation_count
+run_test "abbreviation with append" test_abbreviation_append
+run_test "abbreviation with choices" test_abbreviation_with_choices
+run_test "abbreviation in alternative mode" test_abbreviation_alternative_mode
+run_test "abbreviation with equals in alternative mode" test_abbreviation_alternative_equals
+run_test "single character abbreviation" test_single_char_abbreviation
+run_test "short option vs abbreviation" test_abbreviation_vs_short_option
+echo ""
+
 # Run test_helper_functions.sh
 echo -e "${BLUE}Running helper functions tests...${NC}"
 source "${SCRIPT_DIR}/test_helper_functions.sh"
@@ -107,6 +127,17 @@ source "${SCRIPT_DIR}/test_errors.sh"
 run_test "error on invalid option" test_error_on_invalid_option
 run_test "error on missing required value" test_error_on_missing_required_value
 run_test "error on extra arguments" test_error_on_extra_arguments
+echo ""
+
+# Run test_set_e_compatibility.sh
+echo -e "${BLUE}Running set -e compatibility tests...${NC}"
+source "${SCRIPT_DIR}/test_set_e_compatibility.sh"
+run_test "invalid option with set -e" test_set_e_invalid_option
+run_test "ambiguous abbreviation with set -e" test_set_e_ambiguous_abbreviation
+run_test "missing required with set -e" test_set_e_missing_required
+run_test "valid abbreviation with set -e" test_set_e_valid_abbreviation
+run_test "successful parse with set -e" test_set_e_successful_parse
+run_test "set -u compatibility" test_set_e_with_nounset
 echo ""
 
 #
