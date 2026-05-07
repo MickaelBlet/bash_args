@@ -4,6 +4,8 @@ set -euo pipefail
 
 source "args.sh"
 
+args_set_program_name "quickstart.sh"
+
 args_set_description "example" "of" "description"
 args_set_epilog "example of epilog"
 
