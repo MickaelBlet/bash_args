@@ -264,11 +264,7 @@ __args_parse_option_find_by_abbrev() {
     fi
 
     # If it contains '=', only abbreviate the part before '='
-    local has_assignment="false"
-    local value_part=""
     if [[ "${search_term}" == *"="* ]]; then
-        has_assignment="true"
-        value_part="${search_term#*=}"
         search_term="${search_term%%=*}"
     fi
 
@@ -1498,19 +1494,25 @@ args_parse_arguments() {
                     else
                         local value=""
                         if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
-                            if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                                args_usage_line "${binary_name}"
-                                __args_echo_error "${binary_name}" "option '$1' require a argument"
-                                return 1
+                            if [[ $# -le 1 ]] || [[ "--" == "$2" ]] || \
+                               { [[ "0" == "${__ARGS[option.${i}.nargs]}" ]] && \
+                                 { [[ "$2" =~ ^"-"[[:alpha:]] ]] || [[ "$2" =~ ^"--"[[:alpha:]] ]]; }; }; then
+                                if [[ "0" != "${__ARGS[option.${i}.nargs]}" ]]; then
+                                    args_usage_line "${binary_name}"
+                                    __args_echo_error "${binary_name}" "option '$1' require a argument"
+                                    return 1
+                                fi
+                                value=""
+                            else
+                                value="$2"
+                                if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                                [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                    args_usage_line "${binary_name}"
+                                    __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                    return 1
+                                fi
+                                shift
                             fi
-                            value="$2"
-                            if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
-                            [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                                args_usage_line "${binary_name}"
-                                __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
-                                return 1
-                            fi
-                            shift
                         elif [[ "store_true" == "${__ARGS[option.${i}.action]}" ]]; then
                             value="true"
                         elif [[ "store_false" == "${__ARGS[option.${i}.action]}" ]]; then
@@ -1612,19 +1614,25 @@ args_parse_arguments() {
                 else
                     local value=""
                     if [[ "store" == "${__ARGS[option.${i}.action]}" ]]; then
-                        if [[ $# -le 1 ]] || [[ "--" == "$2" ]]; then
-                            args_usage_line "${binary_name}"
-                            __args_echo_error "${binary_name}" "option '$1' require a argument"
-                            return 1
+                        if [[ $# -le 1 ]] || [[ "--" == "$2" ]] || \
+                           { [[ "0" == "${__ARGS[option.${i}.nargs]}" ]] && \
+                             { [[ "$2" =~ ^"-"[[:alpha:]] ]] || [[ "$2" =~ ^"--"[[:alpha:]] ]]; }; }; then
+                            if [[ "0" != "${__ARGS[option.${i}.nargs]}" ]]; then
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '$1' require a argument"
+                                return 1
+                            fi
+                            value=""
+                        else
+                            value="$2"
+                            if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
+                               [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
+                                args_usage_line "${binary_name}"
+                                __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
+                                return 1
+                            fi
+                            shift
                         fi
-                        value="$2"
-                        if [[ -n "${__ARGS[option.${i}.choices]}" ]] && \
-                           [[ ! "${__ARGS[option.${i}.choices]}" =~ (^|[[:space:]])"${value}"($|[[:space:]]) ]]; then
-                            args_usage_line "${binary_name}"
-                            __args_echo_error "${binary_name}" "option '${value}' is not a valid choise (${__ARGS[option.${i}.choices]// /, })"
-                            return 1
-                        fi
-                        shift
                     elif [[ "store_true" == "${__ARGS[option.${i}.action]}" ]]; then
                         value="true"
                     elif [[ "store_false" == "${__ARGS[option.${i}.action]}" ]]; then
@@ -2036,7 +2044,7 @@ args_parse_arguments() {
                 elif [[ "${__ARGS[option.${i}.long.size]}" -ne 0 ]]; then
                     name="${__ARGS[option.${i}.long.0]}"
                 fi
-                declare -a -g "${__ARGS[option.${i}.dest]}+=('${ARGS[${name}]:-}')"
+                declare -a -g "${__ARGS[option.${i}.dest]}=${ARGS[${name}]:-}"
             fi
         fi
         i=$((i + 1))

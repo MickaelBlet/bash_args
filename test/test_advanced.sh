@@ -100,6 +100,33 @@ test_dest_variable() {
     assert_equals "test_value" "${MY_VAR}" "MY_VAR should be test_value"
 }
 
+test_dest_variable_array_access() {
+    args_add_argument --flag "--option" --action store --dest "MY_VAR"
+    args_parse_arguments "--option" "test_value"
+    assert_equals "test_value" "${MY_VAR[0]}" "MY_VAR[0] should be test_value"
+}
+
+test_dest_variable_overwrite() {
+    MY_VAR="initial_value"
+    args_add_argument --flag "--option" --action store --dest "MY_VAR"
+    args_parse_arguments "--option" "second_value"
+    assert_equals "second_value" "${MY_VAR}" "MY_VAR should hold the latest value"
+    assert_equals "1" "${#MY_VAR[@]}" "MY_VAR should hold a single element"
+}
+
+test_dest_variable_nargs() {
+    args_add_argument --flag "--point" --nargs 2 --dest "POINT_VAR"
+    args_parse_arguments "--point" "1" "2"
+    assert_equals "1" "${POINT_VAR[0]}" "POINT_VAR[0] should be 1"
+    assert_equals "2" "${POINT_VAR[1]}" "POINT_VAR[1] should be 2"
+}
+
+test_dest_variable_empty_value() {
+    args_add_argument --flag "--option" --nargs "?" --dest "OPT_VAR"
+    args_parse_arguments "--option"
+    assert_equals "" "${OPT_VAR}" "OPT_VAR should be empty"
+}
+
 test_metavar_in_usage() {
     args_add_argument --flag "--file" --metavar "FILE" --action store
     local usage
@@ -140,6 +167,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     run_test "infinite nargs *" test_infinite_nargs_star
     run_test "infinite nargs * with empty" test_infinite_nargs_star_empty
     run_test "dest variable" test_dest_variable
+    run_test "dest variable array access" test_dest_variable_array_access
+    run_test "dest variable overwrite single element" test_dest_variable_overwrite
+    run_test "dest variable with nargs" test_dest_variable_nargs
+    run_test "dest variable empty value" test_dest_variable_empty_value
     run_test "metavar in usage" test_metavar_in_usage
     run_test "default with choices" test_default_with_choices
 

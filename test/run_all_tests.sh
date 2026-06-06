@@ -75,6 +75,10 @@ run_test "infinite nargs +" test_infinite_nargs_plus
 run_test "infinite nargs *" test_infinite_nargs_star
 run_test "infinite nargs * with empty" test_infinite_nargs_star_empty
 run_test "dest variable" test_dest_variable
+run_test "dest variable array access" test_dest_variable_array_access
+run_test "dest variable overwrite single element" test_dest_variable_overwrite
+run_test "dest variable with nargs" test_dest_variable_nargs
+run_test "dest variable empty value" test_dest_variable_empty_value
 run_test "metavar in usage" test_metavar_in_usage
 run_test "default with choices" test_default_with_choices
 echo ""
