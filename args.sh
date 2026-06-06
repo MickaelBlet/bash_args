@@ -85,137 +85,116 @@ __args_already_exists() {
     return 1;
 }
 
-# Swap the values of two options in the __ARGS array.
-#   Parameters:
-#     $1 - The index of the first option.
-#     $2 - The index of the second option.
-__args_swap_options() {
-    local i
-    local action
-    local metavar
-    local help
-    local default
-    local dest
-    local required
-    local action
-    local exists
-    local count
-    local choices
-    local nargs
-    local shorts
-    local longs
-    shorts=()
-    longs=()
-
-    # get parameters of option 1
-    action="${__ARGS[option.${1}.action]}"
-    metavar="${__ARGS[option.${1}.metavar]}"
-    help="${__ARGS[option.${1}.help]}"
-    default="${__ARGS[option.${1}.default]}"
-    dest="${__ARGS[option.${1}.dest]}"
-    required="${__ARGS[option.${1}.required]}"
-    action="${__ARGS[option.${1}.action]}"
-    exists="${__ARGS[option.${1}.exists]}"
-    count="${__ARGS[option.${1}.count]}"
-    choices="${__ARGS[option.${1}.choices]}"
-    nargs="${__ARGS[option.${1}.nargs]}"
-    i=0
-    while [[ ${i} -lt ${__ARGS[option.${1}.short.size]} ]]; do
-        shorts+=("${__ARGS[option.${1}.short.${i}]}")
-        i=$((i + 1))
-    done
-    i=0
-    while [[ ${i} -lt ${__ARGS[option.${1}.long.size]} ]]; do
-        longs+=("${__ARGS[option.${1}.long.${i}]}")
-        i=$((i + 1))
-    done
-
-    __ARGS[option.${1}.action]="${__ARGS[option.${2}.action]}"
-    __ARGS[option.${1}.metavar]="${__ARGS[option.${2}.metavar]}"
-    __ARGS[option.${1}.help]="${__ARGS[option.${2}.help]}"
-    __ARGS[option.${1}.default]="${__ARGS[option.${2}.default]}"
-    __ARGS[option.${1}.dest]="${__ARGS[option.${2}.dest]}"
-    __ARGS[option.${1}.required]="${__ARGS[option.${2}.required]}"
-    __ARGS[option.${1}.action]="${__ARGS[option.${2}.action]}"
-    __ARGS[option.${1}.exists]="${__ARGS[option.${2}.exists]}"
-    __ARGS[option.${1}.count]="${__ARGS[option.${2}.count]}"
-    __ARGS[option.${1}.choices]="${__ARGS[option.${2}.choices]}"
-    __ARGS[option.${1}.nargs]="${__ARGS[option.${2}.nargs]}"
-    i=0
-    while [[ ${i} -lt ${__ARGS[option.${2}.short.size]} ]]; do
-        __ARGS[option.${1}.short.${i}]="${__ARGS[option.${2}.short.${i}]}"
-        i=$((i + 1))
-    done
-    __ARGS[option.${1}.short.size]="${__ARGS[option.${2}.short.size]}"
-    i=0
-    while [[ ${i} -lt ${__ARGS[option.${2}.long.size]} ]]; do
-        __ARGS[option.${1}.long.${i}]="${__ARGS[option.${2}.long.${i}]}"
-        i=$((i + 1))
-    done
-    __ARGS[option.${1}.long.size]="${__ARGS[option.${2}.long.size]}"
-
-    __ARGS[option.${2}.action]="${action}"
-    __ARGS[option.${2}.metavar]="${metavar}"
-    __ARGS[option.${2}.help]="${help}"
-    __ARGS[option.${2}.default]="${default}"
-    __ARGS[option.${2}.dest]="${dest}"
-    __ARGS[option.${2}.required]="${required}"
-    __ARGS[option.${2}.action]="${action}"
-    __ARGS[option.${2}.exists]="${exists}"
-    __ARGS[option.${2}.count]="${count}"
-    __ARGS[option.${2}.choices]="${choices}"
-    __ARGS[option.${2}.nargs]="${nargs}"
-    for i in "${!shorts[@]}"; do
-        __ARGS[option.${2}.short.${i}]="${shorts[${i}]}"
-    done
-    __ARGS[option.${2}.short.size]="${#shorts[@]}"
-    for i in "${!longs[@]}"; do
-        __ARGS[option.${2}.long.${i}]="${longs[${i}]}"
-    done
-    __ARGS[option.${2}.long.size]="${#longs[@]}"
-    return 0
-}
-
 # Sort the options in the __ARGS array based on their properties.
 __args_sort() {
     if [[ "true" == "${__ARGS[sorted]}" ]]; then
         return 0
     fi
-    local max
-    local i
-    local j
-    max="$((${__ARGS[option.size]} - 1))"
-    while [[ ${max} -gt 0 ]]; do
-        i=0
-        j=1
-        while [[ ${i} -lt ${max} ]]; do
-            if [[ 0 -ne ${__ARGS[option.${i}.short.size]} ]] && \
-               [[ 0 -ne ${__ARGS[option.${j}.short.size]} ]]; then
-                if [[ "false" == "${__ARGS[option.${i}.required]}" ]] && \
-                   [[ "true" == "${__ARGS[option.${j}.required]}" ]]; then
-                    __args_swap_options "${i}" "${j}"
-                elif [[ "false" == "${__ARGS[option.${i}.required]}" ]] && \
-                     [[ "${__ARGS[option.${i}.short.0]}" > "${__ARGS[option.${j}.short.0]}" ]]; then
-                    __args_swap_options "${i}" "${j}"
-                fi
-            elif [[ 0 -eq "${__ARGS[option.${i}.short.size]}" ]] && \
-                 [[ 0 -eq "${__ARGS[option.${j}.short.size]}" ]]  && \
-                 [[ 0 -ne "${__ARGS[option.${i}.long.size]}" ]] && \
-                 [[ 0 -ne "${__ARGS[option.${j}.long.size]}" ]]; then
-                if [[ "false" == "${__ARGS[option.${i}.required]}" ]] && \
-                   [[ "true" == "${__ARGS[option.${j}.required]}" ]]; then
-                    __args_swap_options "${i}" "${j}"
-                elif [[ "false" == "${__ARGS[option.${i}.required]}" ]] && \
-                     [[ "${__ARGS[option.${i}.long.0]}" > "${__ARGS[option.${j}.long.0]}" ]]; then
-                    __args_swap_options "${i}" "${j}"
-                fi
-            elif [[ 0 -eq "${__ARGS[option.${i}.short.size]}" ]]; then
-                __args_swap_options "${i}" "${j}"
-            fi
-            i=$((i + 1))
+    local n="${__ARGS[option.size]}"
+    local i j k src max a b swap
+    # Snapshot every option's fields once, so the O(n^2) comparison phase and
+    # the reorder move only lightweight indices instead of whole records.
+    local -a S_action S_metavar S_help S_default S_dest S_required
+    local -a S_exists S_count S_choices S_nargs S_ssize S_lsize
+    local -A S_short S_long
+    i=0
+    while [[ ${i} -lt ${n} ]]; do
+        S_action[i]="${__ARGS[option.${i}.action]}"
+        S_metavar[i]="${__ARGS[option.${i}.metavar]}"
+        S_help[i]="${__ARGS[option.${i}.help]}"
+        S_default[i]="${__ARGS[option.${i}.default]}"
+        S_dest[i]="${__ARGS[option.${i}.dest]}"
+        S_required[i]="${__ARGS[option.${i}.required]}"
+        S_exists[i]="${__ARGS[option.${i}.exists]}"
+        S_count[i]="${__ARGS[option.${i}.count]}"
+        S_choices[i]="${__ARGS[option.${i}.choices]}"
+        S_nargs[i]="${__ARGS[option.${i}.nargs]}"
+        S_ssize[i]="${__ARGS[option.${i}.short.size]}"
+        S_lsize[i]="${__ARGS[option.${i}.long.size]}"
+        j=0
+        while [[ ${j} -lt ${S_ssize[i]} ]]; do
+            S_short[${i}.${j}]="${__ARGS[option.${i}.short.${j}]}"
             j=$((j + 1))
         done
+        j=0
+        while [[ ${j} -lt ${S_lsize[i]} ]]; do
+            S_long[${i}.${j}]="${__ARGS[option.${i}.long.${j}]}"
+            j=$((j + 1))
+        done
+        i=$((i + 1))
+    done
+    # order[] holds the permutation; bubble-sort it with the original comparator
+    # evaluated on the snapshot (identical comparison/swap sequence, hence output).
+    local -a order
+    i=0
+    while [[ ${i} -lt ${n} ]]; do
+        order[i]="${i}"
+        i=$((i + 1))
+    done
+    max=$((n - 1))
+    while [[ ${max} -gt 0 ]]; do
+        i=0
+        while [[ ${i} -lt ${max} ]]; do
+            a="${order[i]}"
+            b="${order[$((i + 1))]}"
+            swap="false"
+            if [[ 0 -ne ${S_ssize[a]} ]] && [[ 0 -ne ${S_ssize[b]} ]]; then
+                if [[ "false" == "${S_required[a]}" ]] && [[ "true" == "${S_required[b]}" ]]; then
+                    swap="true"
+                elif [[ "false" == "${S_required[a]}" ]] && [[ "${S_short[${a}.0]}" > "${S_short[${b}.0]}" ]]; then
+                    swap="true"
+                fi
+            elif [[ 0 -eq ${S_ssize[a]} ]] && [[ 0 -eq ${S_ssize[b]} ]] && \
+                 [[ 0 -ne ${S_lsize[a]} ]] && [[ 0 -ne ${S_lsize[b]} ]]; then
+                if [[ "false" == "${S_required[a]}" ]] && [[ "true" == "${S_required[b]}" ]]; then
+                    swap="true"
+                elif [[ "false" == "${S_required[a]}" ]] && [[ "${S_long[${a}.0]}" > "${S_long[${b}.0]}" ]]; then
+                    swap="true"
+                fi
+            elif [[ 0 -eq ${S_ssize[a]} ]]; then
+                swap="true"
+            fi
+            if [[ "true" == "${swap}" ]]; then
+                order[i]="${b}"
+                order[$((i + 1))]="${a}"
+            fi
+            i=$((i + 1))
+        done
         max=$((max - 1))
+    done
+    # Write records back in sorted order and (re)build the O(1) lookup keys.
+    # Option tokens are never removed, so every key is overwritten in place;
+    # no separate clearing pass is needed (args_clean wipes everything).
+    k=0
+    while [[ ${k} -lt ${n} ]]; do
+        src="${order[k]}"
+        __ARGS[option.${k}.action]="${S_action[src]}"
+        __ARGS[option.${k}.metavar]="${S_metavar[src]}"
+        __ARGS[option.${k}.help]="${S_help[src]}"
+        __ARGS[option.${k}.default]="${S_default[src]}"
+        __ARGS[option.${k}.dest]="${S_dest[src]}"
+        __ARGS[option.${k}.required]="${S_required[src]}"
+        __ARGS[option.${k}.exists]="${S_exists[src]}"
+        __ARGS[option.${k}.count]="${S_count[src]}"
+        __ARGS[option.${k}.choices]="${S_choices[src]}"
+        __ARGS[option.${k}.nargs]="${S_nargs[src]}"
+        __ARGS[option.${k}.short.size]="${S_ssize[src]}"
+        __ARGS[option.${k}.long.size]="${S_lsize[src]}"
+        j=0
+        while [[ ${j} -lt ${S_ssize[src]} ]]; do
+            __ARGS[option.${k}.short.${j}]="${S_short[${src}.${j}]}"
+            __ARGS[map.opt.-${S_short[${src}.${j}]}]="${k}"
+            __ARGS[map.short.${S_short[${src}.${j}]}]="${k}"
+            j=$((j + 1))
+        done
+        j=0
+        while [[ ${j} -lt ${S_lsize[src]} ]]; do
+            __ARGS[option.${k}.long.${j}]="${S_long[${src}.${j}]}"
+            __ARGS[map.opt.--${S_long[${src}.${j}]}]="${k}"
+            __ARGS[map.alt.-${S_long[${src}.${j}]}]="${k}"
+            j=$((j + 1))
+        done
+        k=$((k + 1))
     done
     __ARGS[sorted]="true"
     return 0
@@ -324,19 +303,7 @@ __args_parse_option_find_by_abbrev() {
 #     0 - If the value is an alternative value.
 #     1 - If the value is not an alternative value.
 __args_parse_option_is_alternative_value() {
-    local index="$1"
-    local value="$2"
-    local name
-    local i
-    i=0
-    while [[ "${i}" -lt "${__ARGS[option.${index}.long.size]}" ]]; do
-        name="-${__ARGS[option.${index}.long.${i}]}"
-        if [[ "${value}" == "${name}" ]]; then
-            return 0
-        fi
-        i=$((i + 1))
-    done
-    return 1
+    [[ "${__ARGS[map.alt.$2]-}" == "$1" ]]
 }
 
 # Check if the value is an alternative assignment value for a specific option.
@@ -347,19 +314,7 @@ __args_parse_option_is_alternative_value() {
 #     0 - If the value is an alternative assignment value.
 #     1 - If the value is not an alternative assignment value.
 __args_parse_option_is_alternative_assign_value() {
-    local index="$1"
-    local value="$2"
-    local name
-    local i
-    i=0
-    while [[ "${i}" -lt "${__ARGS[option.${index}.long.size]}" ]]; do
-        name="-${__ARGS[option.${index}.long.${i}]}"
-        if [[ "${value}" == "${name}="* ]]; then
-            return 0
-        fi
-        i=$((i + 1))
-    done
-    return 1
+    [[ "$2" == *"="* && "${__ARGS[map.alt.${2%%=*}]-}" == "$1" ]]
 }
 
 # Check if the value is a valid value for a specific option.
@@ -370,24 +325,7 @@ __args_parse_option_is_alternative_assign_value() {
 #     0 - If the value is a valid value.
 #     1 - If the value is not a valid value.
 __args_parse_option_is_value() {
-    local index="$1"
-    local value="$2"
-    local type
-    local name
-    local i
-    for type in "short" "long"; do
-        i=0
-        while [[ "${i}" -lt "${__ARGS[option.${index}.${type}.size]}" ]]; do
-            [[ "short" == "${type}" ]] && name="-"
-            [[ "long" == "${type}" ]] && name="--"
-            name+="${__ARGS[option.${index}.${type}.${i}]}"
-            if [[ "${value}" == "${name}" ]]; then
-                return 0
-            fi
-            i=$((i + 1))
-        done
-    done
-    return 1
+    [[ "${__ARGS[map.opt.$2]-}" == "$1" ]]
 }
 
 # Check if the value is an assignment value for a specific option.
@@ -398,24 +336,7 @@ __args_parse_option_is_value() {
 #     0 - If the value is an assignment value.
 #     1 - If the value is not an assignment value.
 __args_parse_option_is_assign_value() {
-    local index="$1"
-    local value="$2"
-    local type
-    local name
-    local i
-    for type in "short" "long"; do
-        i=0
-        while [[ "${i}" -lt "${__ARGS[option.${index}.${type}.size]}" ]]; do
-            [[ "short" == "${type}" ]] && name="-"
-            [[ "long" == "${type}" ]] && name="--"
-            name+="${__ARGS[option.${index}.${type}.${i}]}"
-            if [[ "${value}" == "${name}="* ]]; then
-                return 0
-            fi
-            i=$((i + 1))
-        done
-    done
-    return 1
+    [[ "$2" == *"="* && "${__ARGS[map.opt.${2%%=*}]-}" == "$1" ]]
 }
 
 # Check if the value is a multi-short value for a specific option.
@@ -426,19 +347,7 @@ __args_parse_option_is_assign_value() {
 #     0 - If the value is a multi-short value.
 #     1 - If the value is not a multi-short value.
 __args_parse_option_is_multi_short_value() {
-    local index="$1"
-    local value="$2"
-    local name
-    local i
-    i=0
-    while [[ "${i}" -lt "${__ARGS[option.${index}.short.size]}" ]]; do
-        name="${__ARGS[option.${index}.short.${i}]}"
-        if [[ "${value}" == "-${name}"* ]]; then
-            return 0
-        fi
-        i=$((i + 1))
-    done
-    return 1
+    [[ "$2" == "-"?* && "$2" != "--"* && "${__ARGS[map.short.${2:1:1}]-}" == "$1" ]]
 }
 
 # Check if the value is a multi-short assignment value for a specific option.
@@ -449,19 +358,7 @@ __args_parse_option_is_multi_short_value() {
 #     0 - If the value is a multi-short assignment value.
 #     1 - If the value is not a multi-short assignment value.
 __args_parse_option_on_multi_short_value() {
-    local index="$1"
-    local value="$2"
-    local name
-    local i
-    i=0
-    while [[ "${i}" -lt "${__ARGS[option.${index}.short.size]}" ]]; do
-        name="${__ARGS[option.${index}.short.${i}]}"
-        if [[ "${value}" == "${name}"* ]]; then
-            return 0
-        fi
-        i=$((i + 1))
-    done
-    return 1
+    [[ "${__ARGS[map.short.${2:0:1}]-}" == "$1" ]]
 }
 
 # Assign a value to an option in the ARGS array.
@@ -1416,6 +1313,8 @@ args_parse_arguments() {
     __args_sort
     local i
     local j
+    local cand
+    local acand
     local positional_index=0
     while true; do
         if [[ $# -eq 0 ]]; then
@@ -1437,9 +1336,12 @@ args_parse_arguments() {
                 return "${ARGS_USAGE_RETURN_CODE}"
             fi
         done
-        i=0
-        # Get options
+        # Get options (fast O(1) lookup -> candidate option index)
         if [[ "true" == "${__ARGS[alternative]}" ]]; then
+            acand=""
+            [[ "$1" == *"="* ]] && acand="${__ARGS[map.alt.${1%%=*}]-}"
+            [[ -z "${acand}" ]] && acand="${__ARGS[map.alt.$1]-}"
+            i="${acand:-${__ARGS[option.size]}}"
             while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
                 if __args_parse_option_is_alternative_value "${i}" "$1"; then
                     if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]]; then
@@ -1560,6 +1462,11 @@ args_parse_arguments() {
                 continue
             fi
         fi
+        cand=""
+        [[ "$1" == *"="* ]] && cand="${__ARGS[map.opt.${1%%=*}]-}"
+        [[ -z "${cand}" ]] && cand="${__ARGS[map.opt.$1]-}"
+        [[ -z "${cand}" && "$1" == "-"?* && "$1" != "--"* ]] && cand="${__ARGS[map.short.${1:1:1}]-}"
+        i="${cand:-${__ARGS[option.size]}}"
         while [[ "${i}" -lt "${__ARGS[option.size]}" ]]; do
             if __args_parse_option_is_value "${i}" "$1"; then
                 if [[ "${__ARGS[option.${i}.nargs]}" -gt 1 ]]; then
@@ -1696,8 +1603,8 @@ args_parse_arguments() {
                     while [[ ${#value} -ge 1 ]]; do
                         value_short="${value:0:1}"
                         value="${value:1}"
-                        # Get options
-                        i_short=0
+                        # Get options (direct short-char lookup)
+                        i_short="${__ARGS[map.short.${value_short}]:-${__ARGS[option.size]}}"
                         while [[ "${i_short}" -lt "${__ARGS[option.size]}" ]]; do
                             if __args_parse_option_on_multi_short_value "${i_short}" "${value_short}"; then
                                 if [[ "store_true" == "${__ARGS[option.${i_short}.action]}" ]]; then

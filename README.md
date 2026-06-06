@@ -13,6 +13,7 @@ Parse command-line arguments and options natively in Bash with automatic help ge
 - **Multiple Actions** - Store values, booleans, counts, or append to lists
 - **Validation** - Enforce choices, required arguments, and value constraints
 - **Flexible Parsing** - Support for `nargs`, default values, and custom metavar
+- **Fast Lookup** - Constant-time option resolution keeps parsing linear in the number of arguments, independent of how many options are defined
 - **Auto-Generated Help** - Automatic `-h`/`--help` with formatted usage messages
 - **Destination Variables** - Store parsed values directly to custom variables
 - **Alternative Mode** - Accept single dash for long options (`-option` instead of `--option`)
@@ -240,4 +241,4 @@ After calling `args_parse_arguments`, parsed values are accessible through these
 |Name|Type|Description|
 |--:|:--:|---|
 |`ARGS`|Associative Array|Stores all parsed argument values. Access using `${ARGS[argument_name]}`|
-|`__ARGS`|Associative Array|Internal storage used by args.sh. Do not modify directly.|
+|`__ARGS`|Associative Array|Internal storage used by args.sh (argument/option definitions and constant-time parse lookup keys). Do not modify directly.|
