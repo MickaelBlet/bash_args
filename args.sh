@@ -209,7 +209,7 @@ __args_echo_error() {
         str="${1##*/}"
     fi
     shift
-    >&2 echo "${str}: $*"
+    echo "${str}: $*" >&2
     return 0
 }
 
@@ -475,7 +475,7 @@ args_set_alternative() {
         __ARGS[alternative]="$1"
         return 0
     else
-        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: accept only true or false parameter"
+        echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: accept only true or false parameter" >&2
         return 1
     fi
 }
@@ -523,7 +523,7 @@ args_isexists() {
             i=$((i + 1))
         done
     done
-    >&2 echo "${__ARGS[program.name]:-$0}: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '$1' is not a valid argument name"
+    echo "${__ARGS[program.name]:-$0}: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '$1' is not a valid argument name" >&2
     return 1
 }
 
@@ -563,7 +563,7 @@ args_count() {
             i=$((i + 1))
         done
     done
-    >&2 echo "${__ARGS[program.name]:-$0}: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '$1' is not a valid argument name"
+    echo "${__ARGS[program.name]:-$0}: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '$1' is not a valid argument name" >&2
     return 1
 }
 
@@ -593,13 +593,13 @@ args_add_argument() {
     local required=false
     local args=()
     while [[ $# -ne 0 ]]; do
-        case $1 in
+        case "${1}" in
             "--")
                 shift
                 break;;
             "--action")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--action' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--action' option require a argument" >&2
                     return 1
                 fi
                 action="${2,,}"
@@ -610,7 +610,7 @@ args_add_argument() {
                 shift;;
             "--choices")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' option require a argument" >&2
                     return 1
                 fi
                 choices="$2"
@@ -620,7 +620,7 @@ args_add_argument() {
                 shift;;
             "--default")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' option require a argument" >&2
                     return 1
                 fi
                 default="$2"
@@ -630,7 +630,7 @@ args_add_argument() {
                 shift;;
             "--dest")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--dest' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--dest' option require a argument" >&2
                     return 1
                 fi
                 dest="$2"
@@ -640,7 +640,7 @@ args_add_argument() {
                 shift;;
             "--help")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--help' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--help' option require a argument" >&2
                     return 1
                 fi
                 help="$2"
@@ -650,7 +650,7 @@ args_add_argument() {
                 shift;;
             "--metavar")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--metavar' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--metavar' option require a argument" >&2
                     return 1
                 fi
                 metavar="$2"
@@ -660,7 +660,7 @@ args_add_argument() {
                 shift;;
             "--nargs")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--nargs' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--nargs' option require a argument" >&2
                     return 1
                 fi
                 nargs="$2"
@@ -673,7 +673,7 @@ args_add_argument() {
                 shift;;
             "--name")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--name' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--name' option require a argument" >&2
                     return 1
                 fi
                 args+=("$2")
@@ -683,7 +683,7 @@ args_add_argument() {
                 shift;;
             "--flag")
                 if [[ $# -le 1 ]]; then
-                    >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--flag' option require a argument"
+                    echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--flag' option require a argument" >&2
                     return 1
                 fi
                 args+=("$2")
@@ -692,7 +692,7 @@ args_add_argument() {
                 args+=("${1#*=}")
                 shift;;
             "-"*)
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: unrecognized option '$1'"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: unrecognized option '$1'" >&2
                 return 1;;
             *)
                 args+=("$1")
@@ -711,13 +711,13 @@ args_add_argument() {
        [[ "${action}" != "store" ]] && \
        [[ "${action}" != "store_false" ]] && \
        [[ "${action}" != "store_true" ]]; then
-        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: unknown action '${action}'"
+        echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: unknown action '${action}'" >&2
         return 1
     fi
 
     # default and required
     if [[ -n "${default}" ]] && [[ "true" == "${required}" ]]; then
-        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' used with '--required'"
+        echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' used with '--required'" >&2
         return 1
     fi
 
@@ -725,19 +725,19 @@ args_add_argument() {
     if [[ "store_true" == "${action}" ]] || [[ "store_false" == "${action}" ]]; then
         # default
         if [[ -n "${default}" ]]; then
-            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' used with action '${action}'"
+            echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--default' used with action '${action}'" >&2
             return 1
         fi
         # metavar
         if [[ -n "${metavar}" ]]; then
-            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--metavar' used with action '${action}'"
+            echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--metavar' used with action '${action}'" >&2
             return 1
         fi
     fi
 
     # choises and not store
     if [[ "${action}" != "store" ]] && [[ -n "${choices}" ]]; then
-        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' used without action 'store'"
+        echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' used without action 'store'" >&2
         return 1
     fi
 
@@ -770,13 +770,13 @@ args_add_argument() {
             done
             IFS="${old_ifs}"
             if [[ "${word_nb}" -ne "${nargs}" ]]; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: number word of '--default' (${word_nb}) is not the same of '--nargs' (${nargs})"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: number word of '--default' (${word_nb}) is not the same of '--nargs' (${nargs})" >&2
                 return 1
             fi
         fi
         # choices
         if [[ -n "${choices}" ]]; then
-            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' can't used with '--nargs'"
+            echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: '--choices' can't used with '--nargs'" >&2
             return 1
         fi
     fi
@@ -797,14 +797,14 @@ args_add_argument() {
         done
         IFS="${old_ifs}"
         if [[ "false" == "${default_exists}" ]]; then
-            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: default value '${default}' not present on choices values"
+            echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: default value '${default}' not present on choices values" >&2
             return 1
         fi
     fi
 
     # not name or flags
     if [[ ${#args[@]} -eq 0 ]]; then
-        >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: need a flag or argument name"
+        echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: need a flag or argument name" >&2
         return 1
     fi
 
@@ -819,7 +819,7 @@ args_add_argument() {
         if [[ "${arg}" == "--"* ]]; then
             # already exists
             if __args_already_exists "${arg:2}"; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: option name '${arg}' already exists"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: option name '${arg}' already exists" >&2
                 return 1
             fi
             is_flag="true"
@@ -827,12 +827,12 @@ args_add_argument() {
         elif [[ "${arg}" == "-"* ]]; then
             # size or digit of short
             if [[ "${#arg}" -ne 2 ]] || [[ "${arg}" =~ ^"-"[[:digit:]]$ ]]; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: short option name '${arg}' not valid"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: short option name '${arg}' not valid" >&2
                 return 1
             fi
             # already exists
             if __args_already_exists "${arg:1}"; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: option name '${arg}' already exists"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: option name '${arg}' already exists" >&2
                 return 1
             fi
             is_flag="true"
@@ -840,17 +840,17 @@ args_add_argument() {
         else
             # multi argument name
             if [[ "true" == "${is_argument}" ]]; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: you can't have multi argument name"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: you can't have multi argument name" >&2
                 return 1
             fi
             # empty argument name
             if [[ -z "${arg}" ]]; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: name of argument is empty"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: name of argument is empty" >&2
                 return 1
             fi
             # already exists
             if __args_already_exists "${arg}"; then
-                >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: argument name '${arg}' already exists"
+                echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: argument name '${arg}' already exists" >&2
                 return 1
             fi
             is_argument="true"
@@ -858,7 +858,7 @@ args_add_argument() {
         fi
         if [[ "true" == "${is_argument}" ]] && \
            [[ "true" == "${is_flag}" ]]; then
-            >&2 echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: you can't mixte argument and flag(s)"
+            echo "$0: line ${BASH_LINENO[0]}: ${FUNCNAME[0]}: you can't mixte argument and flag(s)" >&2
             return 1
         fi
     done
@@ -1959,7 +1959,7 @@ args_parse_arguments() {
     i=0
     while [[ "${i}" -lt "${__ARGS[argument.size]}" ]]; do
         if [[ -n "${__ARGS[argument.${i}.dest]}" ]]; then
-            declare -g "${__ARGS[argument.${i}.dest]}=${ARGS[${__ARGS[argument.${i}.name]}]:-}"
+            declare -a -g "${__ARGS[argument.${i}.dest]}=${ARGS[${__ARGS[argument.${i}.name]}]:-}"
         fi
         i=$((i + 1))
     done
